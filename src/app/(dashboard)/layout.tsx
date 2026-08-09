@@ -3,9 +3,9 @@
 import { useState } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Navbar } from '@/components/layout/Navbar';
-import { MobileNav } from '@/components/layout/MobileNav';
+import { MobileBottomNav } from '@/components/layout/mobile-bottom-nav';
 import { QuickSearchModal } from '@/components/layout/QuickSearchModal';
-import { CreateProjectModal } from '@/components/modals/CreateProjectModal';
+import { ProjectForm } from '@/components/ui/project-form';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -14,7 +14,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex">
       {/* Desktop Sidebar */}
       <div className="hidden md:block">
         <Sidebar
@@ -39,12 +39,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {children}
         </main>
 
-        <MobileNav />
+        <MobileBottomNav />
       </div>
 
       {/* Global Modals */}
       <QuickSearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
-      <CreateProjectModal isOpen={isCreateProjectOpen} onClose={() => setIsCreateProjectOpen(false)} />
+      <ProjectForm isOpen={isCreateProjectOpen} onClose={() => setIsCreateProjectOpen(false)} />
     </div>
   );
 }
