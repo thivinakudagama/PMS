@@ -1,6 +1,28 @@
 -- Seed Data for Single Company PMS Database
 
--- Seed Profiles
+-- 1. Seed auth.users (required for foreign key constraint in public.profiles)
+INSERT INTO auth.users (
+  id,
+  instance_id,
+  email,
+  encrypted_password,
+  email_confirmed_at,
+  raw_app_meta_data,
+  raw_user_meta_data,
+  created_at,
+  updated_at,
+  role,
+  aud
+)
+VALUES
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000000', 'alex.rivera@acme.com', '$2a$10$abcdefghijklmnopqrstuv', NOW(), '{"provider":"email","providers":["email"]}', '{"full_name":"Alex Rivera"}', NOW(), NOW(), 'authenticated', 'authenticated'),
+  ('00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000000', 'marcus.vance@acme.com', '$2a$10$abcdefghijklmnopqrstuv', NOW(), '{"provider":"email","providers":["email"]}', '{"full_name":"Marcus Vance"}', NOW(), NOW(), 'authenticated', 'authenticated'),
+  ('00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000000', 'elena.rodriguez@acme.com', '$2a$10$abcdefghijklmnopqrstuv', NOW(), '{"provider":"email","providers":["email"]}', '{"full_name":"Elena Rodriguez"}', NOW(), NOW(), 'authenticated', 'authenticated'),
+  ('00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000000', 'sarah.chen@acme.com', '$2a$10$abcdefghijklmnopqrstuv', NOW(), '{"provider":"email","providers":["email"]}', '{"full_name":"Sarah Chen"}', NOW(), NOW(), 'authenticated', 'authenticated'),
+  ('00000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000000', 'david.kim@acme.com', '$2a$10$abcdefghijklmnopqrstuv', NOW(), '{"provider":"email","providers":["email"]}', '{"full_name":"David Kim"}', NOW(), NOW(), 'authenticated', 'authenticated')
+ON CONFLICT (id) DO NOTHING;
+
+-- 2. Seed Public Profiles
 INSERT INTO public.profiles (id, email, full_name, avatar_url, job_title, department)
 VALUES
   ('00000000-0000-0000-0000-000000000001', 'alex.rivera@acme.com', 'Alex Rivera', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150', 'Chief Technology Officer', 'Engineering'),
@@ -8,7 +30,11 @@ VALUES
   ('00000000-0000-0000-0000-000000000003', 'elena.rodriguez@acme.com', 'Elena Rodriguez', 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150', 'Senior UI/UX Designer', 'Design'),
   ('00000000-0000-0000-0000-000000000004', 'sarah.chen@acme.com', 'Sarah Chen', 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150', 'Product Manager', 'Product'),
   ('00000000-0000-0000-0000-000000000005', 'david.kim@acme.com', 'David Kim', 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150', 'Full Stack Developer', 'Engineering')
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET
+  full_name = EXCLUDED.full_name,
+  avatar_url = EXCLUDED.avatar_url,
+  job_title = EXCLUDED.job_title,
+  department = EXCLUDED.department;
 
 -- Seed Single Company Organization
 INSERT INTO public.organizations (id, name, slug, created_by)
