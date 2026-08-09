@@ -2,19 +2,20 @@
 
 import { useState } from 'react';
 import { Settings, Building, User, HardDrive, ShieldCheck, CheckCircle } from 'lucide-react';
-import { MOCK_PROFILES, MOCK_ORGANIZATIONS } from '@/lib/mock-data';
+import { useApp } from '@/context/app-context';
 
 export default function SettingsPage() {
+  const { currentOrg, currentUser } = useApp();
   const [activeTab, setActiveTab] = useState<'profile' | 'org' | 'drive'>('profile');
 
   // User Profile
-  const [fullName, setFullName] = useState(MOCK_PROFILES[0].full_name);
-  const [jobTitle, setJobTitle] = useState(MOCK_PROFILES[0].job_title || '');
-  const [department, setDepartment] = useState(MOCK_PROFILES[0].department || '');
+  const [fullName, setFullName] = useState(currentUser.full_name || 'Alex Rivera');
+  const [jobTitle, setJobTitle] = useState(currentUser.job_title || 'Chief Technology Officer');
+  const [department, setDepartment] = useState(currentUser.department || 'Engineering');
 
   // Organization
-  const [orgName, setOrgName] = useState(MOCK_ORGANIZATIONS[0].name);
-  const [slug, setSlug] = useState(MOCK_ORGANIZATIONS[0].slug);
+  const [orgName, setOrgName] = useState(currentOrg?.name || 'Acme Global Corp');
+  const [slug, setSlug] = useState(currentOrg?.slug || 'acme-corp');
 
   // Google Drive API
   const [clientEmail, setClientEmail] = useState('pms-service-account@gcp-acme.iam.gserviceaccount.com');

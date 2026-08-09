@@ -2,9 +2,10 @@
 
 import React, { useState } from 'react';
 import { X, FolderKanban, Calendar, Users, Flag } from 'lucide-react';
-import { Project, ProjectPriority, ProjectStatus, UserProfile } from '@/types';
+import { Project, ProjectPriority, ProjectStatus } from '@/types';
 import { projectSchema } from '@/lib/validation';
 import { MOCK_PROFILES } from '@/lib/mock-data';
+import { useApp } from '@/context/app-context';
 
 interface ProjectFormProps {
   isOpen: boolean;
@@ -14,6 +15,7 @@ interface ProjectFormProps {
 }
 
 export function ProjectForm({ isOpen, onClose, onSuccess, initialData }: ProjectFormProps) {
+  const { createProject, updateProject } = useApp();
   const [title, setTitle] = useState(initialData?.title || '');
   const [description, setDescription] = useState(initialData?.description || '');
   const [status, setStatus] = useState<ProjectStatus>(initialData?.status || 'active');
@@ -34,7 +36,7 @@ export function ProjectForm({ isOpen, onClose, onSuccess, initialData }: Project
     );
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -45,27 +47,35 @@ export function ProjectForm({ isOpen, onClose, onSuccess, initialData }: Project
     }
 
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
       const assignedMembers = MOCK_PROFILES.filter((p) => selectedAssignees.includes(p.id));
-
-      if (onSuccess) {
-        onSuccess({
-          id: initialData?.id || `proj-${Date.now()}`,
-          org_id: initialData?.org_id || 'org-acme',
+      if (initialData?.id) {
+        await updateProject(initialData.id, {
           title,
           description,
           status,
           priority,
           due_date: dueDate ? new Date(dueDate).toISOString() : undefined,
-          created_at: initialData?.created_at || new Date().toISOString(),
-          task_count: initialData?.task_count || 12,
-          completed_task_count: initialData?.completed_task_count || 4,
           members: assignedMembers,
         });
+      } else {
+        const newProj = await createProject({
+          title,
+          description,
+          status,
+          priority,
+          due_date: dueDate ? new Date(dueDate).toISOString() : undefined,
+          members: assignedMembers,
+        });
+        if (onSuccess) onSuccess(newProj);
       }
+      setLoading(false);
       onClose();
-    }, 400);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Failed to save project');
+      setLoading(false);
+    }
   };
 
   return (

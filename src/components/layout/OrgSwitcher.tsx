@@ -2,20 +2,22 @@
 
 import { useState } from 'react';
 import { Building2, ChevronDown, Check, Plus } from 'lucide-react';
-import { MOCK_ORGANIZATIONS } from '@/lib/mock-data';
 import { Organization } from '@/types';
 import { CreateOrgModal } from '@/components/modals/CreateOrgModal';
+import { useApp } from '@/context/app-context';
 
 export function OrgSwitcher() {
-  const [orgs, setOrgs] = useState<Organization[]>(MOCK_ORGANIZATIONS);
-  const [selectedOrg, setSelectedOrg] = useState<Organization>(MOCK_ORGANIZATIONS[0]);
+  const { organizations, currentOrg, switchOrganization, createOrganization } = useApp();
   const [isOpen, setIsOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const handleOrgCreated = (newOrg: Organization) => {
-    setOrgs((prev) => [newOrg, ...prev]);
-    setSelectedOrg(newOrg);
+  const handleOrgCreated = async (newOrg: Organization) => {
+    // Already created in DB/AppContext
   };
+
+  const selectedOrg = currentOrg || { name: 'Acme Global Corp', slug: 'acme-corp', id: 'org-acme', created_at: new Date().toISOString() };
+  const orgs = organizations.length > 0 ? organizations : [selectedOrg];
+
 
   return (
     <div className="relative">
@@ -50,7 +52,7 @@ export function OrgSwitcher() {
               <button
                 key={org.id}
                 onClick={() => {
-                  setSelectedOrg(org);
+                  switchOrganization(org);
                   setIsOpen(false);
                 }}
                 className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${

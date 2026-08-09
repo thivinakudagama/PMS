@@ -3,18 +3,18 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Users, UserPlus, Shield, Mail, MoreHorizontal, CheckCircle, ShieldAlert } from 'lucide-react';
-import { MOCK_ORG_MEMBERS, MOCK_PROFILES } from '@/lib/mock-data';
 import { OrganizationMember, OrgRole } from '@/types';
 import { inviteMemberSchema } from '@/lib/validation';
+import { useApp } from '@/context/app-context';
 
 export default function TeamPage() {
-  const [members, setMembers] = useState<OrganizationMember[]>(MOCK_ORG_MEMBERS);
+  const { members, addMember } = useApp();
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<OrgRole>('Member');
   const [error, setError] = useState<string | null>(null);
 
-  const handleInvite = (e: React.FormEvent) => {
+  const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -24,21 +24,7 @@ export default function TeamPage() {
       return;
     }
 
-    const newMember: OrganizationMember = {
-      id: `mem-${Date.now()}`,
-      org_id: 'org-acme',
-      user_id: `usr-${Date.now()}`,
-      role,
-      user: {
-        id: `usr-${Date.now()}`,
-        email,
-        full_name: email.split('@')[0],
-        avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-        job_title: `${role} Collaborator`,
-      },
-    };
-
-    setMembers((prev) => [...prev, newMember]);
+    await addMember(email, role);
     setShowInviteModal(false);
     setEmail('');
   };

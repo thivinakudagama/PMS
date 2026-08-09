@@ -3,13 +3,13 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { FolderKanban, Plus, Search, LayoutGrid, List } from 'lucide-react';
-import { MOCK_PROJECTS } from '@/lib/mock-data';
 import { Project } from '@/types';
 import { ProjectCard } from '@/components/ui/project-card';
 import { ProjectForm } from '@/components/ui/project-form';
+import { useApp } from '@/context/app-context';
 
 export default function ProjectsPage() {
-  const [projects, setProjects] = useState<Project[]>(MOCK_PROJECTS);
+  const { projects } = useApp();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -24,8 +24,9 @@ export default function ProjectsPage() {
   });
 
   const handleCreateSuccess = (newProject: Project) => {
-    setProjects((prev) => [newProject, ...prev]);
+    // Handled in AppContext
   };
+
 
   return (
     <div className="space-y-6">

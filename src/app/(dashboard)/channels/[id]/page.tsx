@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -14,33 +14,39 @@ import {
   Search,
   CheckCheck,
 } from 'lucide-react';
-import { MOCK_CHANNELS, MOCK_MESSAGES, MOCK_PROFILES } from '@/lib/mock-data';
 import { Message } from '@/types';
+import { useApp } from '@/context/app-context';
+import { dataService } from '@/lib/services/data-service';
 
 export default function ChannelChatPage() {
   const params = useParams();
   const channelId = (params?.id as string) || 'chan-1';
-  
-  const currentChannel = MOCK_CHANNELS.find((c) => c.id === channelId) || MOCK_CHANNELS[0];
-  const [messages, setMessages] = useState<Message[]>(
-    MOCK_MESSAGES.filter((m) => m.channel_id === channelId || m.channel_id === 'chan-1')
-  );
+  const { channels, sendMessage, currentUser } = useApp();
+
+  const currentChannel = channels.find((c) => c.id === channelId) || channels[0] || {
+    id: 'chan-1',
+    name: 'general',
+    description: 'General team discussion channel',
+    is_private: false,
+  };
+
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputContent, setInputContent] = useState('');
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  useEffect(() => {
+    async function loadMsgs() {
+      const list = await dataService.getMessages(currentChannel.id);
+      setMessages(list);
+    }
+    loadMsgs();
+  }, [currentChannel.id]);
+
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputContent.trim()) return;
 
-    const newMessage: Message = {
-      id: `msg-${Date.now()}`,
-      channel_id: currentChannel.id,
-      sender_id: 'usr-1',
-      sender: MOCK_PROFILES[0],
-      content: inputContent,
-      created_at: new Date().toISOString(),
-    };
-
-    setMessages((prev) => [...prev, newMessage]);
+    const newMsg = await sendMessage(currentChannel.id, inputContent);
+    setMessages((prev) => [...prev, newMsg]);
     setInputContent('');
   };
 
@@ -56,7 +62,7 @@ export default function ChannelChatPage() {
         </div>
 
         <div className="space-y-1 flex-1 overflow-y-auto">
-          {MOCK_CHANNELS.map((chan) => {
+          {channels.map((chan) => {
             const isActive = chan.id === currentChannel.id;
             return (
               <Link

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Search, Bell, Plus, HardDrive, Check, ExternalLink, Menu } from 'lucide-react';
 import { DashboardBreadcrumbs } from './dashboard-breadcrumbs';
-import { MOCK_NOTIFICATIONS } from '@/lib/mock-data';
+import { useApp } from '@/context/app-context';
 
 interface NavbarProps {
   onOpenSearch: () => void;
@@ -13,14 +13,15 @@ interface NavbarProps {
 }
 
 export function Navbar({ onOpenSearch, onOpenCreateProjectModal, onToggleMobileNav }: NavbarProps) {
+  const { notifications, markNotificationRead } = useApp();
   const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
-  const markAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+  const markAllRead = async () => {
+    notifications.forEach((n) => markNotificationRead(n.id));
   };
+
 
   return (
     <header className="sticky top-0 z-20 bg-white/90 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800/80 backdrop-blur-md px-4 py-3 flex items-center justify-between gap-4">

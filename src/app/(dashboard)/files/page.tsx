@@ -13,44 +13,32 @@ import {
   Download,
   Plus,
 } from 'lucide-react';
-import { MOCK_FILES, MOCK_PROJECTS, MOCK_PROFILES } from '@/lib/mock-data';
 import { FileItem } from '@/types';
 import { formatBytes, formatDate } from '@/lib/utils';
+import { useApp } from '@/context/app-context';
 
 export default function FilesPage() {
-  const [files, setFiles] = useState<FileItem[]>(MOCK_FILES);
+  const { files, projects, addFile } = useApp();
   const [search, setSearch] = useState('');
   const [showUploadModal, setShowUploadModal] = useState(false);
 
   const [fileName, setFileName] = useState('');
-  const [projectId, setProjectId] = useState(MOCK_PROJECTS[0].id);
+  const [projectId, setProjectId] = useState(projects[0]?.id || 'proj-1');
 
   const filteredFiles = files.filter((f) =>
     f.file_name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleUploadFile = (e: React.FormEvent) => {
+  const handleUploadFile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fileName.trim()) return;
 
-    const proj = MOCK_PROJECTS.find((p) => p.id === projectId);
-
-    const newFile: FileItem = {
-      id: `file-${Date.now()}`,
-      org_id: 'org-acme',
+    await addFile({
+      name: fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`,
       project_id: projectId,
-      project_title: proj?.title || 'General Storage',
-      google_drive_id: `gdrive-${Date.now()}`,
-      file_name: fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`,
-      file_size: 1024 * 1024 * 3.2,
-      mime_type: 'application/pdf',
       web_view_link: 'https://drive.google.com/file/d/demo/view',
-      uploaded_by: 'usr-1',
-      uploader: MOCK_PROFILES[0],
-      created_at: new Date().toISOString(),
-    };
+    });
 
-    setFiles((prev) => [newFile, ...prev]);
     setShowUploadModal(false);
     setFileName('');
   };
@@ -193,7 +181,7 @@ export default function FilesPage() {
                   onChange={(e) => setProjectId(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs"
                 >
-                  {MOCK_PROJECTS.map((p) => (
+                  {projects.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.title}
                     </option>

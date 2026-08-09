@@ -12,13 +12,13 @@ import {
   Calendar,
   CheckCircle2,
 } from 'lucide-react';
-import { MOCK_TASKS, MOCK_PROJECTS, MOCK_PROFILES } from '@/lib/mock-data';
 import { Task, TaskPriority, TaskStatus } from '@/types';
 import { formatDate } from '@/lib/utils';
 import { taskSchema } from '@/lib/validation';
+import { useApp } from '@/context/app-context';
 
 export default function TasksPage() {
-  const [tasks, setTasks] = useState<Task[]>(MOCK_TASKS);
+  const { tasks, projects, members, createTask, updateTask } = useApp();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
@@ -28,10 +28,10 @@ export default function TasksPage() {
   const [showNewTaskModal, setShowNewTaskModal] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [projectId, setProjectId] = useState(MOCK_PROJECTS[0].id);
+  const [projectId, setProjectId] = useState(projects[0]?.id || 'proj-1');
   const [status, setStatus] = useState<TaskStatus>('todo');
   const [priority, setPriority] = useState<TaskPriority>('medium');
-  const [assignedTo, setAssignedTo] = useState(MOCK_PROFILES[2].id);
+  const [assignedTo, setAssignedTo] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const filteredTasks = tasks.filter((t) => {
@@ -41,17 +41,19 @@ export default function TasksPage() {
     return matchesSearch && matchesStatus && matchesPriority;
   });
 
-  const handleCreateTask = (e: React.FormEvent) => {
+  const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    const targetProjId = projectId || (projects.length > 0 ? projects[0].id : 'proj-1');
 
     const validation = taskSchema.safeParse({
       title,
       description,
-      projectId,
+      projectId: targetProjId,
       status,
       priority,
-      assignedTo,
+      assignedTo: assignedTo || 'usr-1',
     });
 
     if (!validation.success) {
@@ -59,23 +61,18 @@ export default function TasksPage() {
       return;
     }
 
-    const proj = MOCK_PROJECTS.find((p) => p.id === projectId);
-    const assigneeObj = MOCK_PROFILES.find((p) => p.id === assignedTo);
+    const assigneeMember = members.find((m) => m.user_id === assignedTo || m.id === assignedTo);
 
-    const newTask: Task = {
-      id: `task-${Date.now()}`,
-      project_id: projectId,
-      project_title: proj?.title || 'General',
+    await createTask({
+      project_id: targetProjId,
       title,
       description,
       status,
       priority,
       assigned_to: assignedTo,
-      assignee: assigneeObj,
-      created_at: new Date().toISOString(),
-    };
+      assignee: assigneeMember?.user,
+    });
 
-    setTasks((prev) => [newTask, ...prev]);
     setShowNewTaskModal(false);
     setTitle('');
     setDescription('');
@@ -275,7 +272,7 @@ export default function TasksPage() {
                   onChange={(e) => setProjectId(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs"
                 >
-                  {MOCK_PROJECTS.map((p) => (
+                  {projects.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.title}
                     </option>
@@ -326,9 +323,9 @@ export default function TasksPage() {
                   onChange={(e) => setAssignedTo(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs"
                 >
-                  {MOCK_PROFILES.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.full_name} ({p.job_title})
+                  {members.map((m) => (
+                    <option key={m.id} value={m.user_id}>
+                      {m.user?.full_name || 'Team Member'} ({m.role})
                     </option>
                   ))}
                 </select>

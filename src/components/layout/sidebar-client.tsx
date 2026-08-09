@@ -25,32 +25,34 @@ import {
   Plus,
 } from 'lucide-react';
 import { OrgSwitcher } from './OrgSwitcher';
-import { MOCK_PROFILES, MOCK_CHANNELS } from '@/lib/mock-data';
+import { useApp } from '@/context/app-context';
 
 interface SidebarClientProps {
   collapsed: boolean;
   onToggleCollapse: () => void;
 }
 
-const MAIN_NAV = [
-  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Projects', href: '/projects', icon: FolderKanban, badge: '4' },
-  { label: 'Tasks', href: '/tasks', icon: CheckSquare, badge: '14' },
-  { label: 'Calendar', href: '/calendar', icon: CalendarIcon },
-  { label: 'Files', href: '/files', icon: HardDrive },
-  { label: 'Reports', href: '/reports', icon: BarChart3 },
-];
-
-const WORKSPACE_NAV = [
-  { label: 'Team', href: '/team', icon: Users },
-  { label: 'Roles (RBAC)', href: '/roles', icon: ShieldAlert },
-  { label: 'Activity', href: '/activity', icon: Activity },
-  { label: 'Settings', href: '/settings', icon: Settings },
-];
-
 export function SidebarClient({ collapsed, onToggleCollapse }: SidebarClientProps) {
   const pathname = usePathname();
-  const currentUser = MOCK_PROFILES[0]; // Alex Rivera (Admin)
+  const { projects, tasks, channels, currentUser, notifications } = useApp();
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
+
+  const MAIN_NAV = [
+    { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { label: 'Projects', href: '/projects', icon: FolderKanban, badge: projects.length.toString() },
+    { label: 'Tasks', href: '/tasks', icon: CheckSquare, badge: tasks.length.toString() },
+    { label: 'Calendar', href: '/calendar', icon: CalendarIcon },
+    { label: 'Files', href: '/files', icon: HardDrive },
+    { label: 'Reports', href: '/reports', icon: BarChart3 },
+  ];
+
+  const WORKSPACE_NAV = [
+    { label: 'Team', href: '/team', icon: Users },
+    { label: 'Roles (RBAC)', href: '/roles', icon: ShieldAlert },
+    { label: 'Activity', href: '/activity', icon: Activity },
+    { label: 'Settings', href: '/settings', icon: Settings },
+  ];
+
 
   return (
     <aside
@@ -171,7 +173,7 @@ export function SidebarClient({ collapsed, onToggleCollapse }: SidebarClientProp
                     <Plus className="w-3.5 h-3.5" />
                   </Link>
                 </div>
-                {MOCK_CHANNELS.slice(0, 3).map((chan) => (
+                {channels.slice(0, 3).map((chan) => (
                   <Link
                     key={chan.id}
                     href={`/channels/${chan.id}`}

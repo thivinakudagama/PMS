@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { X, Building2, Plus } from 'lucide-react';
 import { Organization } from '@/types';
-import { createClient } from '@/lib/supabase/client';
+import { useApp } from '@/context/app-context';
 
 interface CreateOrgModalProps {
   isOpen: boolean;
@@ -12,6 +12,7 @@ interface CreateOrgModalProps {
 }
 
 export function CreateOrgModal({ isOpen, onClose, onSuccess }: CreateOrgModalProps) {
+  const { createOrganization } = useApp();
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -36,39 +37,7 @@ export function CreateOrgModal({ isOpen, onClose, onSuccess }: CreateOrgModalPro
     }
 
     try {
-      const supabase = createClient();
-      const { data: user } = await supabase.auth.getUser();
-
-      const newOrgObj: Organization = {
-        id: `org-${Date.now()}`,
-        name,
-        slug: slug || `org-${Date.now()}`,
-        created_at: new Date().toISOString(),
-      };
-
-      if (user?.user) {
-        // Real Supabase insert if logged in
-        const { data, error: insertError } = await (supabase.from('organizations') as any)
-          .insert({
-            name,
-            slug: newOrgObj.slug,
-            created_by: user.user.id,
-          })
-          .select()
-          .single();
-
-        if (!insertError && data) {
-          newOrgObj.id = data.id;
-
-          // Add current user as Admin in organization_members
-          await (supabase.from('organization_members') as any).insert({
-            org_id: data.id,
-            user_id: user.user.id,
-            role: 'Admin',
-          });
-        }
-      }
-
+      const newOrgObj = await createOrganization(name, slug || name.toLowerCase().replace(/[^a-z0-9]/g, '-'));
       setLoading(false);
       if (onSuccess) {
         onSuccess(newOrgObj);

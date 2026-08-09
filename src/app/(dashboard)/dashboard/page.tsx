@@ -14,16 +14,17 @@ import {
   Activity,
   AlertCircle,
 } from 'lucide-react';
-import { MOCK_PROJECTS, MOCK_TASKS, MOCK_ACTIVITIES, MOCK_FILES } from '@/lib/mock-data';
 import { StatCard } from '@/components/ui/stat-card';
 import { ProjectCard } from '@/components/ui/project-card';
 import { TaskCard } from '@/components/ui/task-card';
 import { ProjectForm } from '@/components/ui/project-form';
+import { useApp } from '@/context/app-context';
 
 export default function DashboardPage() {
-  const activeProjects = MOCK_PROJECTS.filter((p) => p.status === 'active');
-  const pendingTasks = MOCK_TASKS.filter((t) => t.status !== 'done');
-  const completedTasks = MOCK_TASKS.filter((t) => t.status === 'done');
+  const { projects, tasks, activities, members, currentOrg, currentUser } = useApp();
+  const activeProjects = projects.filter((p) => p.status === 'active');
+  const pendingTasks = tasks.filter((t) => t.status !== 'done');
+  const completedTasks = tasks.filter((t) => t.status === 'done');
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   return (
@@ -33,15 +34,16 @@ export default function DashboardPage() {
         <div>
           <div className="flex items-center gap-2 text-indigo-400 text-xs font-semibold uppercase tracking-wider mb-1">
             <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
-            Acme Global Workspace
+            {currentOrg?.name || 'Acme Global Workspace'}
           </div>
           <h1 className="text-2xl md:text-3xl font-extrabold text-white">
-            Welcome back, Alex Rivera 👋
+            Welcome back, {currentUser.full_name} 👋
           </h1>
           <p className="text-slate-300 text-xs md:text-sm mt-1">
             Here is your organizational project health and sprint summary for today.
           </p>
         </div>
+
         <div className="flex items-center gap-3">
           <button
             onClick={() => setIsModalOpen(true)}
@@ -113,7 +115,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {MOCK_PROJECTS.slice(0, 4).map((project) => (
+            {projects.slice(0, 4).map((project) => (
               <ProjectCard key={project.id} project={project} />
             ))}
           </div>
@@ -131,25 +133,25 @@ export default function DashboardPage() {
           </div>
 
           <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 shadow-sm space-y-4">
-            {MOCK_ACTIVITIES.map((act) => (
+            {activities.slice(0, 5).map((act) => (
               <div
                 key={act.id}
                 className="flex items-start gap-3 text-xs border-b border-slate-100 dark:border-slate-800/60 pb-3 last:pb-0 last:border-0"
               >
                 <img
-                  src={act.user?.avatar_url}
-                  alt={act.user?.full_name}
+                  src={act.user?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+                  alt={act.user?.full_name || 'User'}
                   className="w-7 h-7 rounded-full object-cover shrink-0 mt-0.5"
                 />
                 <div className="min-w-0 flex-1">
                   <p className="text-slate-700 dark:text-slate-300">
                     <span className="font-semibold text-slate-900 dark:text-slate-100">
-                      {act.user?.full_name}
+                      {act.user?.full_name || 'Team Member'}
                     </span>{' '}
                     <span className="text-slate-500 dark:text-slate-400">{act.action}</span>
                   </p>
                   <p className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 truncate mt-0.5">
-                    {act.entity_title}
+                    {act.entity_title || act.entity_type}
                   </p>
                   <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono mt-1 block">
                     Just now
@@ -173,7 +175,7 @@ export default function DashboardPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {MOCK_TASKS.slice(0, 3).map((task) => (
+          {tasks.slice(0, 3).map((task) => (
             <TaskCard key={task.id} task={task} />
           ))}
         </div>
