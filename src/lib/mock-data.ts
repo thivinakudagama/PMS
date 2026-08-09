@@ -63,14 +63,6 @@ export const MOCK_ORGANIZATIONS: Organization[] = [
     google_drive_folder_id: 'drive-folder-acme-101',
     created_at: '2026-01-15T08:00:00Z',
   },
-  {
-    id: 'org-nexus',
-    name: 'Nexus Technologies',
-    slug: 'nexus-tech',
-    logo_url: 'https://images.unsplash.com/photo-1557683316-973673baf926?w=120&auto=format&fit=crop&q=80',
-    google_drive_folder_id: 'drive-folder-nexus-202',
-    created_at: '2026-03-10T10:00:00Z',
-  },
 ];
 
 export const MOCK_ORG_MEMBERS: OrganizationMember[] = [

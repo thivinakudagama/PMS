@@ -3,7 +3,7 @@
 import { ShieldAlert, Check, X, Info } from 'lucide-react';
 
 const PERMISSION_MATRIX = [
-  { action: 'Manage Organization Settings', admin: true, pm: false, member: false, viewer: false },
+  { action: 'Manage Company Settings', admin: true, pm: false, member: false, viewer: false },
   { action: 'Invite & Remove Members', admin: true, pm: true, member: false, viewer: false },
   { action: 'Change Member RBAC Roles', admin: true, pm: false, member: false, viewer: false },
   { action: 'Create & Delete Projects', admin: true, pm: true, member: false, viewer: false },

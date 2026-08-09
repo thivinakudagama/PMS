@@ -1,94 +1,36 @@
 'use client';
 
-import { useState } from 'react';
-import { Building2, ChevronDown, Check, Plus } from 'lucide-react';
-import { Organization } from '@/types';
-import { CreateOrgModal } from '@/components/modals/CreateOrgModal';
+import { Building2, ShieldCheck } from 'lucide-react';
 import { useApp } from '@/context/app-context';
 
 export function OrgSwitcher() {
-  const { organizations, currentOrg, switchOrganization, createOrganization } = useApp();
-  const [isOpen, setIsOpen] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const { currentOrg } = useApp();
 
-  const handleOrgCreated = async (newOrg: Organization) => {
-    // Already created in DB/AppContext
+  const selectedOrg = currentOrg || {
+    name: 'Acme Global Corp',
+    slug: 'acme-corp',
+    id: 'org-acme',
+    created_at: new Date().toISOString(),
   };
 
-  const selectedOrg = currentOrg || { name: 'Acme Global Corp', slug: 'acme-corp', id: 'org-acme', created_at: new Date().toISOString() };
-  const orgs = organizations.length > 0 ? organizations : [selectedOrg];
-
-
   return (
-    <div className="relative">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/60 text-slate-900 dark:text-slate-100 transition-all text-left group"
-      >
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-sm">
-            {selectedOrg.name.charAt(0)}
-          </div>
-          <div className="min-w-0">
-            <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-              {selectedOrg.name}
-            </h4>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium truncate">
-              {selectedOrg.slug}
-            </p>
-          </div>
+    <div className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-100 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/60 text-slate-900 dark:text-slate-100 shadow-sm">
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-600 via-indigo-500 to-violet-500 flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-sm">
+          {selectedOrg.name.charAt(0)}
         </div>
-        <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-      </button>
-
-      {isOpen && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-          <div className="absolute top-full left-0 right-0 mt-2 z-50 p-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-1">
-            <div className="px-2 py-1 text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-              Organizations
-            </div>
-            {orgs.map((org) => (
-              <button
-                key={org.id}
-                onClick={() => {
-                  switchOrganization(org);
-                  setIsOpen(false);
-                }}
-                className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${
-                  selectedOrg.id === org.id
-                    ? 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 font-semibold'
-                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <div className="flex items-center gap-2.5 truncate">
-                  <Building2 className="w-4 h-4 text-slate-400" />
-                  <span className="truncate">{org.name}</span>
-                </div>
-                {selectedOrg.id === org.id && <Check className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />}
-              </button>
-            ))}
-
-            <div className="pt-1.5 border-t border-slate-100 dark:border-slate-800">
-              <button
-                onClick={() => {
-                  setIsOpen(false);
-                  setIsModalOpen(true);
-                }}
-                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-indigo-600 dark:text-indigo-400 font-semibold hover:bg-indigo-50 dark:hover:bg-slate-800/60 transition-colors"
-              >
-                <Plus className="w-4 h-4" /> Create New Org
-              </button>
-            </div>
-          </div>
-        </>
-      )}
-
-      <CreateOrgModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSuccess={handleOrgCreated}
-      />
+        <div className="min-w-0">
+          <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+            {selectedOrg.name}
+          </h4>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium truncate flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+            <span>Company Workspace</span>
+          </p>
+        </div>
+      </div>
+      <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
     </div>
   );
 }
+

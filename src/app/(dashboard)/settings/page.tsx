@@ -61,9 +61,9 @@ export default function SettingsPage() {
               : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
           }`}
         >
-          <Building className="w-4 h-4" /> Organization Details
+          <Building className="w-4 h-4" /> Company Details
         </button>
-
+ 
         <button
           onClick={() => setActiveTab('drive')}
           className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-colors ${
@@ -138,11 +138,11 @@ export default function SettingsPage() {
 
       {activeTab === 'org' && (
         <form onSubmit={handleSave} className="p-6 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-4">
-          <h3 className="text-sm font-bold text-slate-100 mb-2">Organization Workspace</h3>
+          <h3 className="text-sm font-bold text-slate-100 mb-2">Company Workspace Profile</h3>
 
           <div>
             <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-              Organization Name
+              Company Name
             </label>
             <input
               type="text"
@@ -157,7 +157,7 @@ export default function SettingsPage() {
               Workspace URL Slug
             </label>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-500 font-mono">pms.app/org/</span>
+              <span className="text-xs text-slate-500 font-mono">pms.app/company/</span>
               <input
                 type="text"
                 value={slug}
@@ -172,7 +172,7 @@ export default function SettingsPage() {
               type="submit"
               className="px-5 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-xs font-semibold shadow-md"
             >
-              Update Organization
+              Update Company Details
             </button>
           </div>
         </form>

@@ -121,7 +121,7 @@ export default function FilesPage() {
                 {file.file_name}
               </h4>
               <p className="text-[11px] text-brand-400 font-medium mt-1">
-                Project: {file.project_title || 'Organization General'}
+                Project: {file.project_title || 'Company General'}
               </p>
             </div>
 

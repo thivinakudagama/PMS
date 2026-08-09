@@ -11,7 +11,7 @@ export default function ActivityTimelinePage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-extrabold text-slate-100 flex items-center gap-2.5">
-          <Activity className="w-6 h-6 text-indigo-400" /> Organization Activity Feed
+          <Activity className="w-6 h-6 text-indigo-400" /> Company Activity Feed
         </h1>
         <p className="text-xs text-slate-400 mt-1">
           Chronological audit trail of all project modifications, task updates, and file attachments.

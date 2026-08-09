@@ -34,7 +34,7 @@ export default function ProjectsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-2.5">
-            <FolderKanban className="w-6 h-6 text-indigo-600 dark:text-indigo-400" /> Organization Projects
+            <FolderKanban className="w-6 h-6 text-indigo-600 dark:text-indigo-400" /> Company Projects
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             Manage, organize, and monitor project milestones across teams.

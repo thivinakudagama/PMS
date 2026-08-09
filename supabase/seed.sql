@@ -1,4 +1,4 @@
--- Seed Data for PMS Multi-Tenant Database
+-- Seed Data for Single Company PMS Database
 
 -- Seed Profiles
 INSERT INTO public.profiles (id, email, full_name, avatar_url, job_title, department)
@@ -10,11 +10,10 @@ VALUES
   ('00000000-0000-0000-0000-000000000005', 'david.kim@acme.com', 'David Kim', 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150', 'Full Stack Developer', 'Engineering')
 ON CONFLICT (id) DO NOTHING;
 
--- Seed Organization
+-- Seed Single Company Organization
 INSERT INTO public.organizations (id, name, slug, created_by)
 VALUES
-  ('11111111-1111-1111-1111-111111111111', 'Acme Global Corp', 'acme-corp', '00000000-0000-0000-0000-000000000001'),
-  ('22222222-2222-2222-2222-222222222222', 'Stark Industries', 'stark-ind', '00000000-0000-0000-0000-000000000001')
+  ('11111111-1111-1111-1111-111111111111', 'Acme Global Corp', 'acme-corp', '00000000-0000-0000-0000-000000000001')
 ON CONFLICT (id) DO NOTHING;
 
 -- Seed Organization Members
