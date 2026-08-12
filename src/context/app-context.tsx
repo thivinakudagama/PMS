@@ -42,6 +42,7 @@ interface AppContextType {
   deleteTask: (id: string) => Promise<void>;
   addMember: (email: string, role: 'Admin' | 'Project Manager' | 'Member' | 'Viewer') => Promise<void>;
   updateMemberRole: (memberId: string, role: 'Admin' | 'Project Manager' | 'Member' | 'Viewer') => Promise<void>;
+  removeMember: (memberId: string) => Promise<void>;
   addFile: (file: Partial<FileItem> & { name: string }) => Promise<void>;
   sendMessage: (channelId: string, content: string) => Promise<Message | null>;
   markNotificationRead: (id: string) => Promise<void>;
@@ -253,6 +254,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const removeMember = async (memberId: string) => {
+    const success = await dataService.removeMember(memberId);
+    if (success) {
+      setMembers((prev) => prev.filter((m) => m.id !== memberId));
+    }
+  };
+
   const addFile = async (fileData: Partial<FileItem> & { name: string }) => {
     if (!currentOrg) return;
     const newFile = await dataService.addFile({ ...fileData, org_id: currentOrg.id });
@@ -296,6 +304,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         deleteTask,
         addMember,
         updateMemberRole,
+        removeMember,
         addFile,
         sendMessage,
         markNotificationRead,

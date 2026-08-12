@@ -8,11 +8,21 @@ import { inviteMemberSchema } from '@/lib/validation';
 import { useApp } from '@/context/app-context';
 
 export default function TeamPage() {
-  const { members, addMember } = useApp();
+  const { members, addMember, updateMemberRole, removeMember } = useApp();
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<OrgRole>('Member');
   const [error, setError] = useState<string | null>(null);
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+
+  // Close dropdown when clicking outside
+  if (typeof window !== 'undefined') {
+    window.onclick = (e) => {
+      if (!(e.target as Element).closest('.dropdown-container')) {
+        setOpenDropdownId(null);
+      }
+    };
+  }
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,10 +116,24 @@ export default function TeamPage() {
                     {m.role}
                   </span>
                 </td>
-                <td className="p-4 text-right">
-                  <button className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800">
+                <td className="p-4 text-right relative dropdown-container">
+                  <button
+                    onClick={() => setOpenDropdownId(openDropdownId === m.id ? null : m.id)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                  >
                     <MoreHorizontal className="w-4 h-4" />
                   </button>
+                  {openDropdownId === m.id && (
+                    <div className="absolute right-8 top-10 z-50 w-48 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden text-left py-1">
+                      <div className="px-3 py-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Change Role</div>
+                      <button onClick={() => { updateMemberRole(m.id, 'Admin'); setOpenDropdownId(null); }} className="w-full px-4 py-2 text-xs text-slate-300 hover:bg-slate-800 hover:text-white text-left">Admin</button>
+                      <button onClick={() => { updateMemberRole(m.id, 'Project Manager'); setOpenDropdownId(null); }} className="w-full px-4 py-2 text-xs text-slate-300 hover:bg-slate-800 hover:text-white text-left">Project Manager</button>
+                      <button onClick={() => { updateMemberRole(m.id, 'Member'); setOpenDropdownId(null); }} className="w-full px-4 py-2 text-xs text-slate-300 hover:bg-slate-800 hover:text-white text-left">Member</button>
+                      <button onClick={() => { updateMemberRole(m.id, 'Viewer'); setOpenDropdownId(null); }} className="w-full px-4 py-2 text-xs text-slate-300 hover:bg-slate-800 hover:text-white text-left">Viewer</button>
+                      <div className="border-t border-slate-800 my-1"></div>
+                      <button onClick={() => { if(confirm('Are you sure you want to remove this member?')) removeMember(m.id); setOpenDropdownId(null); }} className="w-full px-4 py-2 text-xs text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 text-left font-semibold">Remove Member</button>
+                    </div>
+                  )}
                 </td>
               </tr>
             ))}

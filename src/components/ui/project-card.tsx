@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { Calendar, CheckCircle2, Clock } from 'lucide-react';
+import { Calendar, CheckCircle2, Clock, Edit2 } from 'lucide-react';
 import { Project } from '@/types';
 import { StatusBadge } from './status-badge';
 import { formatDate } from '@/lib/utils';
@@ -8,9 +8,10 @@ import { formatDate } from '@/lib/utils';
 interface ProjectCardProps {
   project: Project;
   orgName?: string;
+  onEdit?: (project: Project) => void;
 }
 
-export function ProjectCard({ project, orgName = 'Acme Global' }: ProjectCardProps) {
+export function ProjectCard({ project, orgName = 'Acme Global', onEdit }: ProjectCardProps) {
   const totalTasks = project.task_count || 12;
   const completedTasks = project.completed_task_count || 8;
   const progressPercent = Math.round((completedTasks / totalTasks) * 100);
@@ -22,7 +23,17 @@ export function ProjectCard({ project, orgName = 'Acme Global' }: ProjectCardPro
           <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 truncate">
             {orgName}
           </span>
-          <StatusBadge status={project.status} />
+          <div className="flex items-center gap-2">
+            <StatusBadge status={project.status} />
+            {onEdit && (
+              <button 
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onEdit(project); }}
+                className="p-1 rounded-md text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors"
+              >
+                <Edit2 className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
 
         <Link href={`/projects/${project.id}`} className="block">

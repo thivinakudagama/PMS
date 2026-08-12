@@ -201,6 +201,12 @@ export const dataService = {
     return null;
   },
 
+  async removeMember(memberId: string): Promise<boolean> {
+    const supabase = createClient();
+    const { error } = await supabase.from('organization_members').delete().eq('id', memberId);
+    return !error;
+  },
+
   async getFiles(orgId: string): Promise<FileItem[]> {
     const supabase = createClient();
     const { data, error } = await supabase.from('files').select('*').eq('org_id', orgId);

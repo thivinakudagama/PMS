@@ -26,6 +26,7 @@ export default function TasksPage() {
 
   // New task form states
   const [showNewTaskModal, setShowNewTaskModal] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [projectId, setProjectId] = useState(projects[0]?.id || 'proj-1');
@@ -41,7 +42,18 @@ export default function TasksPage() {
     return matchesSearch && matchesStatus && matchesPriority;
   });
 
-  const handleCreateTask = async (e: React.FormEvent) => {
+  const openEditModal = (task: Task) => {
+    setEditingTaskId(task.id);
+    setTitle(task.title);
+    setDescription(task.description || '');
+    setProjectId(task.project_id);
+    setStatus(task.status);
+    setPriority(task.priority);
+    setAssignedTo(task.assigned_to || '');
+    setShowNewTaskModal(true);
+  };
+
+  const handleCreateOrUpdateTask = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -63,17 +75,29 @@ export default function TasksPage() {
 
     const assigneeMember = members.find((m) => m.user_id === assignedTo || m.id === assignedTo);
 
-    await createTask({
-      project_id: targetProjId,
-      title,
-      description,
-      status,
-      priority,
-      assigned_to: assignedTo,
-      assignee: assigneeMember?.user,
-    });
+    if (editingTaskId) {
+      await updateTask(editingTaskId, {
+        title,
+        description,
+        status,
+        priority,
+        assigned_to: assignedTo,
+        assignee: assigneeMember?.user,
+      });
+    } else {
+      await createTask({
+        project_id: targetProjId,
+        title,
+        description,
+        status,
+        priority,
+        assigned_to: assignedTo,
+        assignee: assigneeMember?.user,
+      });
+    }
 
     setShowNewTaskModal(false);
+    setEditingTaskId(null);
     setTitle('');
     setDescription('');
   };
@@ -92,7 +116,12 @@ export default function TasksPage() {
         </div>
 
         <button
-          onClick={() => setShowNewTaskModal(true)}
+          onClick={() => {
+            setEditingTaskId(null);
+            setTitle('');
+            setDescription('');
+            setShowNewTaskModal(true);
+          }}
           className="px-4 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-xs font-semibold shadow-lg shadow-brand-500/25 flex items-center gap-2 transition-all self-start sm:self-auto"
         >
           <Plus className="w-4 h-4" /> Create Task
@@ -167,7 +196,8 @@ export default function TasksPage() {
           {filteredTasks.map((t) => (
             <div
               key={t.id}
-              className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-brand-500/50 transition-all shadow-lg flex flex-col justify-between"
+              onClick={() => openEditModal(t)}
+              className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-brand-500/50 transition-all shadow-lg flex flex-col justify-between cursor-pointer"
             >
               <div>
                 <div className="flex items-center justify-between text-[11px] mb-2">
@@ -217,7 +247,7 @@ export default function TasksPage() {
             </thead>
             <tbody className="divide-y divide-slate-800/60">
               {filteredTasks.map((t) => (
-                <tr key={t.id} className="hover:bg-slate-800/50 transition-colors">
+                <tr key={t.id} onClick={() => openEditModal(t)} className="hover:bg-slate-800/50 transition-colors cursor-pointer">
                   <td className="p-4 font-bold text-slate-100">{t.title}</td>
                   <td className="p-4 text-brand-400 font-medium">{t.project_title}</td>
                   <td className="p-4 capitalize text-slate-300">{t.status.replace('_', ' ')}</td>
@@ -242,13 +272,13 @@ export default function TasksPage() {
       {showNewTaskModal && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden p-6 space-y-4">
-            <h3 className="text-base font-bold text-slate-100">Create Task</h3>
+            <h3 className="text-base font-bold text-slate-100">{editingTaskId ? 'Edit Task' : 'Create Task'}</h3>
             {error && (
               <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs">
                 {error}
               </div>
             )}
-            <form onSubmit={handleCreateTask} className="space-y-4">
+            <form onSubmit={handleCreateOrUpdateTask} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
                   Task Title *
@@ -331,20 +361,38 @@ export default function TasksPage() {
                 </select>
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowNewTaskModal(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-brand-500 text-white text-xs font-semibold shadow-md"
-                >
-                  Save Task
-                </button>
+              <div className="flex justify-between items-center pt-2">
+                {editingTaskId ? (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (confirm('Are you sure you want to delete this task?')) {
+                        await deleteTask(editingTaskId);
+                        setShowNewTaskModal(false);
+                        setEditingTaskId(null);
+                      }
+                    }}
+                    className="px-4 py-2 text-xs font-semibold text-rose-400 hover:bg-rose-500/10 rounded-xl transition-colors"
+                  >
+                    Delete
+                  </button>
+                ) : <div />}
+                
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowNewTaskModal(false)}
+                    className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 rounded-xl bg-brand-500 text-white text-xs font-semibold shadow-md transition-colors hover:bg-brand-600"
+                  >
+                    Save Task
+                  </button>
+                </div>
               </div>
             </form>
           </div>

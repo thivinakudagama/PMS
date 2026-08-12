@@ -14,6 +14,7 @@ export default function ProjectsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
 
   const filteredProjects = projects.filter((p) => {
     const matchesSearch =
@@ -42,7 +43,10 @@ export default function ProjectsPage() {
         </div>
 
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => {
+            setEditingProject(null);
+            setIsModalOpen(true);
+          }}
           className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-lg shadow-indigo-500/25 flex items-center gap-2 transition-all self-start sm:self-auto"
         >
           <Plus className="w-4 h-4" /> Create Project
@@ -110,7 +114,10 @@ export default function ProjectsPage() {
       {viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredProjects.map((project) => (
-            <ProjectCard key={project.id} project={project} />
+            <ProjectCard key={project.id} project={project} onEdit={(p) => {
+              setEditingProject(p);
+              setIsModalOpen(true);
+            }} />
           ))}
         </div>
       ) : (
@@ -141,7 +148,16 @@ export default function ProjectsPage() {
                     <td className="p-4 capitalize text-indigo-600 dark:text-indigo-400 font-semibold">{p.status}</td>
                     <td className="p-4 capitalize text-slate-600 dark:text-slate-300">{p.priority}</td>
                     <td className="p-4 font-semibold text-indigo-600 dark:text-indigo-400">{percent}%</td>
-                    <td className="p-4 text-right">
+                    <td className="p-4 text-right flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => {
+                          setEditingProject(p);
+                          setIsModalOpen(true);
+                        }}
+                        className="px-3 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-[11px] font-semibold transition-colors"
+                      >
+                        Edit
+                      </button>
                       <Link
                         href={`/projects/${p.id}`}
                         className="px-3 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-[11px] font-semibold transition-colors"
@@ -157,12 +173,18 @@ export default function ProjectsPage() {
         </div>
       )}
 
-      {/* New Project Modal */}
-      <ProjectForm
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSuccess={handleCreateSuccess}
-      />
+      {/* New/Edit Project Modal */}
+      {isModalOpen && (
+        <ProjectForm
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
+            setEditingProject(null);
+          }}
+          onSuccess={handleCreateSuccess}
+          initialData={editingProject || undefined}
+        />
+      )}
     </div>
   );
 }
