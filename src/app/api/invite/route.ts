@@ -45,7 +45,11 @@ export async function POST(request: Request) {
       targetUserId = existingProfile.id;
     } else {
       // 4. User does not exist, send an email invitation using the Admin API
-      const { data: inviteData, error: inviteError } = await adminAuthClient.auth.admin.inviteUserByEmail(email);
+      // Construct the absolute URL for the redirect
+      const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+      const { data: inviteData, error: inviteError } = await adminAuthClient.auth.admin.inviteUserByEmail(email, {
+        redirectTo: `${origin}/update-password`
+      });
       
       if (inviteError) {
         // If the user already registered in auth.users but no profile exists for some reason, catch it

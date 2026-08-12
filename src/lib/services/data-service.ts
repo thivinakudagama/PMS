@@ -308,4 +308,28 @@ export const dataService = {
     if (!error && data) return data as Message;
     return null;
   },
+
+  async updateProfile(userId: string, orgId: string, updates: Partial<UserProfile>): Promise<UserProfile | null> {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(updates)
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (!error && data) {
+      // Log activity
+      await (supabase.from('activity_logs') as any).insert({
+        org_id: orgId,
+        user_id: userId,
+        action: 'updated their personal profile',
+        entity_type: 'profile',
+        entity_id: userId,
+      });
+
+      return data as UserProfile;
+    }
+    return null;
+  },
 };

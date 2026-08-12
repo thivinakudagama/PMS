@@ -5,7 +5,7 @@ import { Settings, Building, User, HardDrive, ShieldCheck, CheckCircle } from 'l
 import { useApp } from '@/context/app-context';
 
 export default function SettingsPage() {
-  const { currentOrg, currentUser } = useApp();
+  const { currentOrg, currentUser, updateProfile } = useApp();
   const [activeTab, setActiveTab] = useState<'profile' | 'org' | 'drive'>('profile');
 
   // User Profile
@@ -22,8 +22,16 @@ export default function SettingsPage() {
   const [folderId, setFolderId] = useState('');
   const [saved, setSaved] = useState(false);
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (activeTab === 'profile') {
+      await updateProfile({
+        full_name: fullName,
+        job_title: jobTitle,
+        department: department,
+      });
+    }
+    
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };

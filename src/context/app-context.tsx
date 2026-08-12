@@ -46,6 +46,7 @@ interface AppContextType {
   removeMember: (memberId: string) => Promise<void>;
   addFile: (file: Partial<FileItem> & { name: string }) => Promise<void>;
   sendMessage: (channelId: string, content: string) => Promise<Message | null>;
+  updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
   markNotificationRead: (id: string) => Promise<void>;
   refreshData: () => Promise<void>;
 }
@@ -271,8 +272,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   const sendMessage = async (channelId: string, content: string): Promise<Message | null> => {
-    const msg = await dataService.sendMessage(channelId, content);
-    return msg;
+    try {
+      const msg = await dataService.sendMessage(channelId, content);
+      return msg;
+    } catch (err: any) {
+      console.error('Error in sendMessage:', err.message);
+      return null;
+    }
+  };
+
+  const updateProfile = async (updates: Partial<UserProfile>) => {
+    if (!currentUser || !currentOrg) return;
+    try {
+      const updatedUser = await dataService.updateProfile(currentUser.id, currentOrg.id, updates);
+      if (updatedUser) {
+        setCurrentUser(updatedUser);
+        await loadOrgData(currentOrg.id); // Refresh activity logs
+      }
+    } catch (err: any) {
+      console.error('Error updating profile:', err.message);
+    }
   };
 
   const markNotificationRead = async (id: string) => {
@@ -311,6 +330,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         removeMember,
         addFile,
         sendMessage,
+        updateProfile,
         markNotificationRead,
         refreshData,
       }}

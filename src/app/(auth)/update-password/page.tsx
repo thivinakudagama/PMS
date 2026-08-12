@@ -5,16 +5,18 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FolderKanban, Lock, CheckCircle, ArrowRight } from 'lucide-react';
 import { updatePasswordSchema } from '@/lib/validation';
+import { createClient } from '@/lib/supabase/client';
 
 export default function UpdatePasswordPage() {
   const router = useRouter();
+  const supabase = createClient();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -25,11 +27,20 @@ export default function UpdatePasswordPage() {
     }
 
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setSuccess(true);
-      setTimeout(() => router.push('/login'), 1500);
-    }, 600);
+    
+    const { error: updateError } = await supabase.auth.updateUser({
+      password: password
+    });
+
+    setLoading(false);
+
+    if (updateError) {
+      setError(updateError.message);
+      return;
+    }
+
+    setSuccess(true);
+    setTimeout(() => router.push('/dashboard'), 1500);
   };
 
   return (
