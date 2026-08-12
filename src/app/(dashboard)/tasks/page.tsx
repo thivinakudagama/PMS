@@ -18,7 +18,7 @@ import { taskSchema } from '@/lib/validation';
 import { useApp } from '@/context/app-context';
 
 export default function TasksPage() {
-  const { tasks, projects, members, createTask, updateTask } = useApp();
+  const { tasks, projects, members, createTask, updateTask, deleteTask, currentUserRole } = useApp();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
@@ -115,17 +115,19 @@ export default function TasksPage() {
           </p>
         </div>
 
-        <button
-          onClick={() => {
-            setEditingTaskId(null);
-            setTitle('');
-            setDescription('');
-            setShowNewTaskModal(true);
-          }}
-          className="px-4 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-xs font-semibold shadow-lg shadow-brand-500/25 flex items-center gap-2 transition-all self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" /> Create Task
-        </button>
+        {currentUserRole !== 'Viewer' && (
+          <button
+            onClick={() => {
+              setEditingTaskId(null);
+              setTitle('');
+              setDescription('');
+              setShowNewTaskModal(true);
+            }}
+            className="px-4 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-xs font-semibold shadow-lg shadow-brand-500/25 flex items-center gap-2 transition-all self-start sm:self-auto"
+          >
+            <Plus className="w-4 h-4" /> Create Task
+          </button>
+        )}
       </div>
 
       {/* Filter Bar */}
@@ -288,8 +290,9 @@ export default function TasksPage() {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Task title..."
-                  className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs focus:outline-none"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs focus:outline-none disabled:opacity-50"
                   required
+                  disabled={currentUserRole === 'Viewer'}
                 />
               </div>
 
@@ -300,7 +303,8 @@ export default function TasksPage() {
                 <select
                   value={projectId}
                   onChange={(e) => setProjectId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs disabled:opacity-50"
+                  disabled={currentUserRole === 'Viewer'}
                 >
                   {projects.map((p) => (
                     <option key={p.id} value={p.id}>
@@ -318,7 +322,8 @@ export default function TasksPage() {
                   <select
                     value={status}
                     onChange={(e) => setStatus(e.target.value as TaskStatus)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs disabled:opacity-50"
+                    disabled={currentUserRole === 'Viewer'}
                   >
                     <option value="todo">To Do</option>
                     <option value="in_progress">In Progress</option>
@@ -334,7 +339,8 @@ export default function TasksPage() {
                   <select
                     value={priority}
                     onChange={(e) => setPriority(e.target.value as TaskPriority)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs disabled:opacity-50"
+                    disabled={currentUserRole === 'Viewer'}
                   >
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
@@ -351,7 +357,8 @@ export default function TasksPage() {
                 <select
                   value={assignedTo}
                   onChange={(e) => setAssignedTo(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs disabled:opacity-50"
+                  disabled={currentUserRole === 'Viewer'}
                 >
                   {members.map((m) => (
                     <option key={m.id} value={m.user_id}>
@@ -362,7 +369,7 @@ export default function TasksPage() {
               </div>
 
               <div className="flex justify-between items-center pt-2">
-                {editingTaskId ? (
+                {(editingTaskId && (currentUserRole === 'Admin' || currentUserRole === 'Project Manager')) ? (
                   <button
                     type="button"
                     onClick={async () => {
@@ -384,14 +391,16 @@ export default function TasksPage() {
                     onClick={() => setShowNewTaskModal(false)}
                     className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white transition-colors"
                   >
-                    Cancel
+                    {currentUserRole === 'Viewer' ? 'Close' : 'Cancel'}
                   </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 rounded-xl bg-brand-500 text-white text-xs font-semibold shadow-md transition-colors hover:bg-brand-600"
-                  >
-                    Save Task
-                  </button>
+                  {currentUserRole !== 'Viewer' && (
+                    <button
+                      type="submit"
+                      className="px-4 py-2 rounded-xl bg-brand-500 text-white text-xs font-semibold shadow-md transition-colors hover:bg-brand-600"
+                    >
+                      Save Task
+                    </button>
+                  )}
                 </div>
               </div>
             </form>

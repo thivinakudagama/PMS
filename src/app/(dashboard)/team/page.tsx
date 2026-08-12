@@ -8,7 +8,7 @@ import { inviteMemberSchema } from '@/lib/validation';
 import { useApp } from '@/context/app-context';
 
 export default function TeamPage() {
-  const { members, addMember, updateMemberRole, removeMember } = useApp();
+  const { members, addMember, updateMemberRole, removeMember, currentUserRole } = useApp();
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<OrgRole>('Member');
@@ -63,12 +63,15 @@ export default function TeamPage() {
           >
             <ShieldAlert className="w-4 h-4 text-brand-400" /> View RBAC Matrix
           </Link>
+
+        {currentUserRole === 'Admin' && (
           <button
             onClick={() => setShowInviteModal(true)}
-            className="px-4 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-xs font-semibold shadow-lg shadow-brand-500/25 flex items-center gap-2 transition-all"
+            className="px-4 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-xs font-semibold shadow-lg shadow-brand-500/25 flex items-center gap-2 transition-all self-start sm:self-auto"
           >
             <UserPlus className="w-4 h-4" /> Invite Member
           </button>
+        )}
         </div>
       </div>
 
@@ -117,22 +120,26 @@ export default function TeamPage() {
                   </span>
                 </td>
                 <td className="p-4 text-right relative dropdown-container">
-                  <button
-                    onClick={() => setOpenDropdownId(openDropdownId === m.id ? null : m.id)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-                  >
-                    <MoreHorizontal className="w-4 h-4" />
-                  </button>
-                  {openDropdownId === m.id && (
-                    <div className="absolute right-8 top-10 z-50 w-48 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden text-left py-1">
-                      <div className="px-3 py-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Change Role</div>
-                      <button onClick={() => { updateMemberRole(m.id, 'Admin'); setOpenDropdownId(null); }} className="w-full px-4 py-2 text-xs text-slate-300 hover:bg-slate-800 hover:text-white text-left">Admin</button>
-                      <button onClick={() => { updateMemberRole(m.id, 'Project Manager'); setOpenDropdownId(null); }} className="w-full px-4 py-2 text-xs text-slate-300 hover:bg-slate-800 hover:text-white text-left">Project Manager</button>
-                      <button onClick={() => { updateMemberRole(m.id, 'Member'); setOpenDropdownId(null); }} className="w-full px-4 py-2 text-xs text-slate-300 hover:bg-slate-800 hover:text-white text-left">Member</button>
-                      <button onClick={() => { updateMemberRole(m.id, 'Viewer'); setOpenDropdownId(null); }} className="w-full px-4 py-2 text-xs text-slate-300 hover:bg-slate-800 hover:text-white text-left">Viewer</button>
-                      <div className="border-t border-slate-800 my-1"></div>
-                      <button onClick={() => { if(confirm('Are you sure you want to remove this member?')) removeMember(m.id); setOpenDropdownId(null); }} className="w-full px-4 py-2 text-xs text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 text-left font-semibold">Remove Member</button>
-                    </div>
+                  {currentUserRole === 'Admin' && (
+                    <>
+                      <button
+                        onClick={() => setOpenDropdownId(openDropdownId === m.id ? null : m.id)}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                      >
+                        <MoreHorizontal className="w-4 h-4" />
+                      </button>
+                      {openDropdownId === m.id && (
+                        <div className="absolute right-8 top-10 z-50 w-48 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden text-left py-1">
+                          <div className="px-3 py-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Change Role</div>
+                          <button onClick={() => { updateMemberRole(m.id, 'Admin'); setOpenDropdownId(null); }} className="w-full px-4 py-2 text-xs text-slate-300 hover:bg-slate-800 hover:text-white text-left">Admin</button>
+                          <button onClick={() => { updateMemberRole(m.id, 'Project Manager'); setOpenDropdownId(null); }} className="w-full px-4 py-2 text-xs text-slate-300 hover:bg-slate-800 hover:text-white text-left">Project Manager</button>
+                          <button onClick={() => { updateMemberRole(m.id, 'Member'); setOpenDropdownId(null); }} className="w-full px-4 py-2 text-xs text-slate-300 hover:bg-slate-800 hover:text-white text-left">Member</button>
+                          <button onClick={() => { updateMemberRole(m.id, 'Viewer'); setOpenDropdownId(null); }} className="w-full px-4 py-2 text-xs text-slate-300 hover:bg-slate-800 hover:text-white text-left">Viewer</button>
+                          <div className="border-t border-slate-800 my-1"></div>
+                          <button onClick={() => { if(confirm('Are you sure you want to remove this member?')) removeMember(m.id); setOpenDropdownId(null); }} className="w-full px-4 py-2 text-xs text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 text-left font-semibold">Remove Member</button>
+                        </div>
+                      )}
+                    </>
                   )}
                 </td>
               </tr>

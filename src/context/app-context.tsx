@@ -21,6 +21,7 @@ interface AppContextType {
   organizations: Organization[];
   currentOrg: Organization | null;
   currentUser: UserProfile | null;
+  currentUserRole: 'Admin' | 'Project Manager' | 'Member' | 'Viewer' | null;
   isSuperAdmin: boolean;
   projects: Project[];
   tasks: Task[];
@@ -279,12 +280,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
   };
 
+  const currentUserRole = currentUser ? (members.find(m => m.user_id === currentUser.id)?.role as 'Admin' | 'Project Manager' | 'Member' | 'Viewer') || null : null;
+
   return (
     <AppContext.Provider
       value={{
         organizations,
         currentOrg,
         currentUser,
+        currentUserRole,
         isSuperAdmin,
         projects,
         tasks,

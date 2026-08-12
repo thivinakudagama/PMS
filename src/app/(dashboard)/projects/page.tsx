@@ -9,7 +9,7 @@ import { ProjectForm } from '@/components/ui/project-form';
 import { useApp } from '@/context/app-context';
 
 export default function ProjectsPage() {
-  const { projects } = useApp();
+  const { projects, currentUserRole } = useApp();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -42,15 +42,17 @@ export default function ProjectsPage() {
           </p>
         </div>
 
-        <button
-          onClick={() => {
-            setEditingProject(null);
-            setIsModalOpen(true);
-          }}
-          className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-lg shadow-indigo-500/25 flex items-center gap-2 transition-all self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" /> Create Project
-        </button>
+        {(currentUserRole === 'Admin' || currentUserRole === 'Project Manager') && (
+          <button
+            onClick={() => {
+              setEditingProject(null);
+              setIsModalOpen(true);
+            }}
+            className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-lg shadow-indigo-500/25 flex items-center gap-2 transition-all self-start sm:self-auto"
+          >
+            <Plus className="w-4 h-4" /> Create Project
+          </button>
+        )}
       </div>
 
       {/* Filter & Search Bar */}
@@ -114,10 +116,10 @@ export default function ProjectsPage() {
       {viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredProjects.map((project) => (
-            <ProjectCard key={project.id} project={project} onEdit={(p) => {
+            <ProjectCard key={project.id} project={project} onEdit={(currentUserRole === 'Admin' || currentUserRole === 'Project Manager') ? (p) => {
               setEditingProject(p);
               setIsModalOpen(true);
-            }} />
+            } : undefined} />
           ))}
         </div>
       ) : (
@@ -149,15 +151,17 @@ export default function ProjectsPage() {
                     <td className="p-4 capitalize text-slate-600 dark:text-slate-300">{p.priority}</td>
                     <td className="p-4 font-semibold text-indigo-600 dark:text-indigo-400">{percent}%</td>
                     <td className="p-4 text-right flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => {
-                          setEditingProject(p);
-                          setIsModalOpen(true);
-                        }}
-                        className="px-3 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-[11px] font-semibold transition-colors"
-                      >
-                        Edit
-                      </button>
+                      {(currentUserRole === 'Admin' || currentUserRole === 'Project Manager') && (
+                        <button
+                          onClick={() => {
+                            setEditingProject(p);
+                            setIsModalOpen(true);
+                          }}
+                          className="px-3 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-[11px] font-semibold transition-colors"
+                        >
+                          Edit
+                        </button>
+                      )}
                       <Link
                         href={`/projects/${p.id}`}
                         className="px-3 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-[11px] font-semibold transition-colors"
