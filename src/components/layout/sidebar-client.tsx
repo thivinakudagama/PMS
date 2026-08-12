@@ -238,6 +238,36 @@ export function SidebarClient({ collapsed, onToggleCollapse }: SidebarClientProp
             })}
           </div>
         </div>
+
+        {/* Platform Admin Group */}
+        {useApp().isSuperAdmin && (
+          <div>
+            {!collapsed && (
+              <h5 className="px-3 text-[10px] font-bold text-rose-500 dark:text-rose-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5 mt-2">
+                <Lock className="w-3 h-3" />
+                Platform Admin
+              </h5>
+            )}
+            <div className="space-y-0.5">
+              <Link
+                href="/admin/platform"
+                className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all group ${
+                  pathname === '/admin/platform'
+                    ? 'bg-rose-600 text-white shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 hover:text-rose-600 dark:hover:text-rose-400'
+                } ${collapsed ? 'justify-center px-0' : ''}`}
+                title={collapsed ? 'Platform Admin' : undefined}
+              >
+                <ShieldAlert
+                  className={`w-4 h-4 shrink-0 ${
+                    pathname === '/admin/platform' ? 'text-white' : 'text-rose-400 group-hover:text-rose-500'
+                  }`}
+                />
+                {!collapsed && <span className="truncate flex-1">Overview</span>}
+              </Link>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* User Profile Footer */}

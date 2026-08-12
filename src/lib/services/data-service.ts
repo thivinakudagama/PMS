@@ -1,4 +1,4 @@
-﻿import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/client';
 import {
   Organization,
   Project,
@@ -18,6 +18,35 @@ export const dataService = {
     const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
     if (!error && data) return data as UserProfile;
     return null;
+  },
+
+  async checkIsSuperAdmin(userId: string): Promise<boolean> {
+    const supabase = createClient();
+    const { data, error } = await supabase.from('platform_admins').select('user_id').eq('user_id', userId).single();
+    if (error || !data) return false;
+    return true;
+  },
+
+  async getAllProfiles(): Promise<UserProfile[]> {
+    const supabase = createClient();
+    const { data, error } = await supabase.from('profiles').select('*');
+    if (!error && data) return data as UserProfile[];
+    return [];
+  },
+
+  async getPlatformStats(): Promise<{ totalUsers: number; totalOrgs: number; totalProjects: number }> {
+    const supabase = createClient();
+    const [usersRes, orgsRes, projectsRes] = await Promise.all([
+      supabase.from('profiles').select('*', { count: 'exact', head: true }),
+      supabase.from('organizations').select('*', { count: 'exact', head: true }),
+      supabase.from('projects').select('*', { count: 'exact', head: true }),
+    ]);
+
+    return {
+      totalUsers: usersRes.count || 0,
+      totalOrgs: orgsRes.count || 0,
+      totalProjects: projectsRes.count || 0,
+    };
   },
 
   async getOrganizations(): Promise<Organization[]> {

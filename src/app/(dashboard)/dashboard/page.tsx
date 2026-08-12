@@ -13,6 +13,7 @@ import {
   Plus,
   Activity,
   AlertCircle,
+  Rocket,
 } from 'lucide-react';
 import { StatCard } from '@/components/ui/stat-card';
 import { ProjectCard } from '@/components/ui/project-card';

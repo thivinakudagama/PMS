@@ -9,6 +9,7 @@ export interface UserProfile {
   avatar_url: string;
   job_title?: string;
   department?: string;
+  created_at: string;
 }
 
 export interface Organization {

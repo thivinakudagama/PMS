@@ -21,6 +21,7 @@ interface AppContextType {
   organizations: Organization[];
   currentOrg: Organization | null;
   currentUser: UserProfile | null;
+  isSuperAdmin: boolean;
   projects: Project[];
   tasks: Task[];
   members: OrganizationMember[];
@@ -54,6 +55,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [currentOrg, setCurrentOrg] = useState<Organization | null>(null);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [isSuperAdmin, setIsSuperAdmin] = useState<boolean>(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [members, setMembers] = useState<OrganizationMember[]>([]);
@@ -67,6 +69,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const profile = await dataService.getUserProfile(userId);
     if (!profile) return;
     setCurrentUser(profile);
+
+    const superAdminCheck = await dataService.checkIsSuperAdmin(userId);
+    setIsSuperAdmin(superAdminCheck);
 
     const orgs = await dataService.getOrganizations();
     if (orgs.length > 0) {
@@ -109,6 +114,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       } else {
         setCurrentUser(null);
         setCurrentOrg(null);
+        setIsSuperAdmin(false);
         setOrganizations([]);
         if (typeof window !== 'undefined' && window.location.pathname !== '/login' && window.location.pathname !== '/signup') {
           router.push('/login');
@@ -266,6 +272,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         organizations,
         currentOrg,
         currentUser,
+        isSuperAdmin,
         projects,
         tasks,
         members,
