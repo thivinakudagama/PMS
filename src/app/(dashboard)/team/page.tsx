@@ -24,9 +24,13 @@ export default function TeamPage() {
       return;
     }
 
-    await addMember(email, role);
-    setShowInviteModal(false);
-    setEmail('');
+    try {
+      await addMember(email, role);
+      setShowInviteModal(false);
+      setEmail('');
+    } catch (err: any) {
+      setError(err.message || 'An unexpected error occurred while inviting the member.');
+    }
   };
 
   return (

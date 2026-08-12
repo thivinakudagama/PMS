@@ -232,12 +232,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const addMember = async (email: string, role: 'Admin' | 'Project Manager' | 'Member' | 'Viewer') => {
     if (!currentOrg) return;
-    const newMember = await dataService.addMember(currentOrg.id, email, role);
-    if (newMember) {
-      setMembers((prev) => [newMember, ...prev]);
-      await dataService.logActivity(currentOrg.id, `invited ${email} as ${role}`, 'member', newMember.id);
-      const updatedActivities = await dataService.getActivities(currentOrg.id);
-      setActivities(updatedActivities);
+    try {
+      const newMember = await dataService.inviteMember(currentOrg.id, email, role);
+      if (newMember) {
+        setMembers((prev) => [newMember, ...prev]);
+        await dataService.logActivity(currentOrg.id, `invited ${email} as ${role}`, 'member', newMember.id);
+        const updatedActivities = await dataService.getActivities(currentOrg.id);
+        setActivities(updatedActivities);
+      }
+    } catch (error) {
+      console.error('Failed to invite member:', error);
+      throw error; // Re-throw so the UI can catch and display the error message
     }
   };
 

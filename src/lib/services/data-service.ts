@@ -169,6 +169,27 @@ export const dataService = {
     return null;
   },
 
+  async inviteMember(orgId: string, email: string, role: 'Admin' | 'Project Manager' | 'Member' | 'Viewer'): Promise<OrganizationMember | null> {
+    try {
+      const response = await fetch('/api/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orgId, email, role }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to invite member');
+      }
+      
+      return data.member as OrganizationMember;
+    } catch (error) {
+      console.error('Error inviting member:', error);
+      throw error;
+    }
+  },
+
   async updateMemberRole(memberId: string, role: 'Admin' | 'Project Manager' | 'Member' | 'Viewer'): Promise<OrganizationMember | null> {
     const supabase = createClient();
     const { data, error } = await (supabase.from('organization_members') as any)
