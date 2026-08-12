@@ -32,9 +32,9 @@ export default function DashboardPage() {
       {/* Welcome Banner */}
       <div className="p-6 rounded-2xl bg-gradient-to-r from-indigo-900/90 via-slate-900 to-slate-950 border border-indigo-500/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xl">
         <div>
-          <div className="flex items-center gap-2 text-indigo-400 text-xs font-semibold uppercase tracking-wider mb-1">
-            <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
-            {currentOrg?.name || 'Acme Global Workspace'}
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand-500/10 border border-brand-500/20 text-brand-400 text-[10px] font-bold uppercase tracking-wider mb-4">
+            <Rocket className="w-3.5 h-3.5" />
+            {currentOrg?.name || 'Loading Workspace...'}
           </div>
           <h1 className="text-2xl md:text-3xl font-extrabold text-white">
             Welcome back, {currentUser?.full_name || 'User'} 👋

@@ -6,12 +6,15 @@ import { useApp } from '@/context/app-context';
 export function OrgSwitcher() {
   const { currentOrg } = useApp();
 
-  const selectedOrg = currentOrg || {
-    name: 'Acme Global Corp',
-    slug: 'acme-corp',
-    id: 'org-acme',
-    created_at: new Date().toISOString(),
-  };
+  const selectedOrg = currentOrg || null;
+
+  if (!selectedOrg) {
+    return (
+      <div className="w-full flex items-center justify-center p-3 rounded-xl bg-slate-100 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/60 text-slate-500 dark:text-slate-400 text-xs font-semibold shadow-sm">
+        No Workspace Selected
+      </div>
+    );
+  }
 
   return (
     <div className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-100 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/60 text-slate-900 dark:text-slate-100 shadow-sm">
