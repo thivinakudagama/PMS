@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Search, FolderKanban, CheckSquare, MessageSquare, X } from 'lucide-react';
-import { MOCK_PROJECTS, MOCK_TASKS, MOCK_CHANNELS } from '@/lib/mock-data';
+import { useApp } from '@/context/app-context';
+import { Project, Task, Channel } from '@/types';
 
 interface QuickSearchModalProps {
   isOpen: boolean;
@@ -12,16 +13,17 @@ interface QuickSearchModalProps {
 
 export function QuickSearchModal({ isOpen, onClose }: QuickSearchModalProps) {
   const [query, setQuery] = useState('');
+  const { projects, tasks, channels } = useApp();
 
   if (!isOpen) return null;
 
-  const filteredProjects = MOCK_PROJECTS.filter((p) =>
+  const filteredProjects = projects.filter((p: Project) =>
     p.title.toLowerCase().includes(query.toLowerCase())
   );
-  const filteredTasks = MOCK_TASKS.filter((t) =>
+  const filteredTasks = tasks.filter((t: Task) =>
     t.title.toLowerCase().includes(query.toLowerCase())
   );
-  const filteredChannels = MOCK_CHANNELS.filter((c) =>
+  const filteredChannels = channels.filter((c: Channel) =>
     c.name.toLowerCase().includes(query.toLowerCase())
   );
 
@@ -52,7 +54,7 @@ export function QuickSearchModal({ isOpen, onClose }: QuickSearchModalProps) {
               <FolderKanban className="w-3.5 h-3.5" /> Projects ({filteredProjects.length})
             </h5>
             <div className="space-y-1">
-              {filteredProjects.map((p) => (
+              {filteredProjects.map((p: Project) => (
                 <Link
                   key={p.id}
                   href={`/projects/${p.id}`}
@@ -72,7 +74,7 @@ export function QuickSearchModal({ isOpen, onClose }: QuickSearchModalProps) {
               <CheckSquare className="w-3.5 h-3.5" /> Tasks ({filteredTasks.length})
             </h5>
             <div className="space-y-1">
-              {filteredTasks.map((t) => (
+              {filteredTasks.map((t: Task) => (
                 <Link
                   key={t.id}
                   href="/tasks"
@@ -81,7 +83,7 @@ export function QuickSearchModal({ isOpen, onClose }: QuickSearchModalProps) {
                 >
                   <div>
                     <div className="font-semibold">{t.title}</div>
-                    <div className="text-[10px] text-slate-400">{t.project_title}</div>
+                    <div className="text-[10px] text-slate-400">{t.project_title || ''}</div>
                   </div>
                   <span className="text-[10px] text-slate-400 capitalize">{t.status.replace('_', ' ')}</span>
                 </Link>
@@ -95,7 +97,7 @@ export function QuickSearchModal({ isOpen, onClose }: QuickSearchModalProps) {
               <MessageSquare className="w-3.5 h-3.5" /> Channels ({filteredChannels.length})
             </h5>
             <div className="space-y-1">
-              {filteredChannels.map((c) => (
+              {filteredChannels.map((c: Channel) => (
                 <Link
                   key={c.id}
                   href={`/channels/${c.id}`}

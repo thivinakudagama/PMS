@@ -1,6 +1,8 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 import {
   Organization,
   Project,
@@ -14,12 +16,11 @@ import {
   NotificationItem,
 } from '@/types';
 import { dataService } from '@/lib/services/data-service';
-import { MOCK_PROFILES } from '@/lib/mock-data';
 
 interface AppContextType {
   organizations: Organization[];
   currentOrg: Organization | null;
-  currentUser: UserProfile;
+  currentUser: UserProfile | null;
   projects: Project[];
   tasks: Task[];
   members: OrganizationMember[];
@@ -31,17 +32,17 @@ interface AppContextType {
 
   // Actions
   switchOrganization: (org: Organization) => void;
-  createOrganization: (name: string, slug: string) => Promise<Organization>;
-  createProject: (project: Partial<Project> & { title: string }) => Promise<Project>;
+  createOrganization: (name: string, slug: string) => Promise<Organization | null>;
+  createProject: (project: Partial<Project> & { title: string }) => Promise<Project | null>;
   updateProject: (id: string, updates: Partial<Project>) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
-  createTask: (task: Partial<Task> & { title: string; project_id: string }) => Promise<Task>;
+  createTask: (task: Partial<Task> & { title: string; project_id: string }) => Promise<Task | null>;
   updateTask: (id: string, updates: Partial<Task>) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
   addMember: (email: string, role: 'Admin' | 'Project Manager' | 'Member' | 'Viewer') => Promise<void>;
   updateMemberRole: (memberId: string, role: 'Admin' | 'Project Manager' | 'Member' | 'Viewer') => Promise<void>;
   addFile: (file: Partial<FileItem> & { name: string }) => Promise<void>;
-  sendMessage: (channelId: string, content: string) => Promise<Message>;
+  sendMessage: (channelId: string, content: string) => Promise<Message | null>;
   markNotificationRead: (id: string) => Promise<void>;
   refreshData: () => Promise<void>;
 }
@@ -49,9 +50,10 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [currentOrg, setCurrentOrg] = useState<Organization | null>(null);
-  const [currentUser] = useState<UserProfile>(MOCK_PROFILES[0]);
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [members, setMembers] = useState<OrganizationMember[]>([]);
@@ -61,22 +63,64 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Load initial organizations
-  useEffect(() => {
-    async function loadOrgs() {
-      setLoading(true);
-      const orgs = await dataService.getOrganizations();
+  const fetchUserProfileAndOrgs = useCallback(async (userId: string) => {
+    const profile = await dataService.getUserProfile(userId);
+    if (!profile) return;
+    setCurrentUser(profile);
+
+    const orgs = await dataService.getOrganizations();
+    if (orgs.length > 0) {
       setOrganizations(orgs);
-      if (orgs.length > 0) {
-        setCurrentOrg(orgs[0]);
+      setCurrentOrg(orgs[0]);
+    } else {
+      // Auto create org if none exists (using metadata from signup)
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.user_metadata?.org_name) {
+        const slug = user.user_metadata.org_name.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+        const newOrg = await dataService.createOrganization(user.user_metadata.org_name, slug);
+        if (newOrg) {
+          await dataService.addMember(newOrg.id, user.email || '', 'Admin', user.id);
+          setOrganizations([newOrg]);
+          setCurrentOrg(newOrg);
+        }
       }
-      setLoading(false);
     }
-    loadOrgs();
   }, []);
 
-  // Fetch org-specific resources whenever currentOrg changes
+  useEffect(() => {
+    const supabase = createClient();
+    
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        fetchUserProfileAndOrgs(session.user.id);
+      } else {
+        setLoading(false);
+        // Only redirect if on dashboard routes
+        if (typeof window !== 'undefined' && window.location.pathname !== '/login' && window.location.pathname !== '/signup') {
+          router.push('/login');
+        }
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        fetchUserProfileAndOrgs(session.user.id);
+      } else {
+        setCurrentUser(null);
+        setCurrentOrg(null);
+        setOrganizations([]);
+        if (typeof window !== 'undefined' && window.location.pathname !== '/login' && window.location.pathname !== '/signup') {
+          router.push('/login');
+        }
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [fetchUserProfileAndOrgs, router]);
+
   const loadOrgData = useCallback(async (orgId: string) => {
+    setLoading(true);
     const [pList, tList, mList, fList, cList, aList, nList] = await Promise.all([
       dataService.getProjects(orgId),
       dataService.getTasks(orgId),
@@ -94,6 +138,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setChannels(cList);
     setActivities(aList);
     setNotifications(nList);
+    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -112,20 +157,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setCurrentOrg(org);
   };
 
-  const createOrganization = async (name: string, slug: string): Promise<Organization> => {
+  const createOrganization = async (name: string, slug: string): Promise<Organization | null> => {
     const newOrg = await dataService.createOrganization(name, slug);
-    setOrganizations((prev) => [newOrg, ...prev]);
-    setCurrentOrg(newOrg);
+    if (newOrg) {
+      setOrganizations((prev) => [newOrg, ...prev]);
+      setCurrentOrg(newOrg);
+    }
     return newOrg;
   };
 
-  const createProject = async (projectData: Partial<Project> & { title: string }): Promise<Project> => {
-    const orgId = currentOrg ? currentOrg.id : 'org-acme';
-    const newProj = await dataService.createProject({ ...projectData, org_id: orgId });
-    setProjects((prev) => [newProj, ...prev]);
-    await dataService.logActivity(orgId, `created new project "${newProj.title}"`, 'project', newProj.id);
-    const updatedActivities = await dataService.getActivities(orgId);
-    setActivities(updatedActivities);
+  const createProject = async (projectData: Partial<Project> & { title: string }): Promise<Project | null> => {
+    if (!currentOrg) return null;
+    const newProj = await dataService.createProject({ ...projectData, org_id: currentOrg.id });
+    if (newProj) {
+      setProjects((prev) => [newProj, ...prev]);
+      await dataService.logActivity(currentOrg.id, `created new project "${newProj.title}"`, 'project', newProj.id);
+      const updatedActivities = await dataService.getActivities(currentOrg.id);
+      setActivities(updatedActivities);
+    }
     return newProj;
   };
 
@@ -137,17 +186,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteProject = async (id: string) => {
-    await dataService.deleteProject(id);
-    setProjects((prev) => prev.filter((p) => p.id !== id));
+    const success = await dataService.deleteProject(id);
+    if (success) {
+      setProjects((prev) => prev.filter((p) => p.id !== id));
+    }
   };
 
-  const createTask = async (taskData: Partial<Task> & { title: string; project_id: string }): Promise<Task> => {
+  const createTask = async (taskData: Partial<Task> & { title: string; project_id: string }): Promise<Task | null> => {
     const newTask = await dataService.createTask(taskData);
-    setTasks((prev) => [newTask, ...prev]);
-    if (currentOrg) {
-      await dataService.logActivity(currentOrg.id, `created task "${newTask.title}"`, 'task', newTask.id);
-      const updatedActivities = await dataService.getActivities(currentOrg.id);
-      setActivities(updatedActivities);
+    if (newTask) {
+      setTasks((prev) => [newTask, ...prev]);
+      if (currentOrg) {
+        await dataService.logActivity(currentOrg.id, `created task "${newTask.title}"`, 'task', newTask.id);
+        const updatedActivities = await dataService.getActivities(currentOrg.id);
+        setActivities(updatedActivities);
+      }
     }
     return newTask;
   };
@@ -165,17 +218,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteTask = async (id: string) => {
-    await dataService.deleteTask(id);
-    setTasks((prev) => prev.filter((t) => t.id !== id));
+    const success = await dataService.deleteTask(id);
+    if (success) {
+      setTasks((prev) => prev.filter((t) => t.id !== id));
+    }
   };
 
   const addMember = async (email: string, role: 'Admin' | 'Project Manager' | 'Member' | 'Viewer') => {
     if (!currentOrg) return;
     const newMember = await dataService.addMember(currentOrg.id, email, role);
-    setMembers((prev) => [newMember, ...prev]);
-    await dataService.logActivity(currentOrg.id, `invited ${email} as ${role}`, 'member', newMember.id);
-    const updatedActivities = await dataService.getActivities(currentOrg.id);
-    setActivities(updatedActivities);
+    if (newMember) {
+      setMembers((prev) => [newMember, ...prev]);
+      await dataService.logActivity(currentOrg.id, `invited ${email} as ${role}`, 'member', newMember.id);
+      const updatedActivities = await dataService.getActivities(currentOrg.id);
+      setActivities(updatedActivities);
+    }
   };
 
   const updateMemberRole = async (memberId: string, role: 'Admin' | 'Project Manager' | 'Member' | 'Viewer') => {
@@ -188,10 +245,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const addFile = async (fileData: Partial<FileItem> & { name: string }) => {
     if (!currentOrg) return;
     const newFile = await dataService.addFile({ ...fileData, org_id: currentOrg.id });
-    setFiles((prev) => [newFile, ...prev]);
+    if (newFile) {
+      setFiles((prev) => [newFile, ...prev]);
+    }
   };
 
-  const sendMessage = async (channelId: string, content: string): Promise<Message> => {
+  const sendMessage = async (channelId: string, content: string): Promise<Message | null> => {
     const msg = await dataService.sendMessage(channelId, content);
     return msg;
   };

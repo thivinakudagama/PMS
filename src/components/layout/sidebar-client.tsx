@@ -157,9 +157,9 @@ export function SidebarClient({ collapsed, onToggleCollapse }: SidebarClientProp
             >
               <Bell className="w-4 h-4 shrink-0 text-slate-400 group-hover:text-indigo-500" />
               {!collapsed && <span className="truncate flex-1">Inbox</span>}
-              {!collapsed && (
+              {!collapsed && unreadCount > 0 && (
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
-                  2
+                  {unreadCount}
                 </span>
               )}
             </Link>
@@ -244,14 +244,14 @@ export function SidebarClient({ collapsed, onToggleCollapse }: SidebarClientProp
       <div className="p-3 border-t border-slate-200 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/40">
         <div className={`flex items-center gap-3 ${collapsed ? 'justify-center' : ''}`}>
           <img
-            src={currentUser.avatar_url}
-            alt={currentUser.full_name}
+            src={currentUser?.avatar_url || 'https://www.gravatar.com/avatar/?d=mp'}
+            alt={currentUser?.full_name || 'User'}
             className="w-9 h-9 rounded-full object-cover ring-2 ring-slate-200 dark:ring-slate-700 shrink-0"
           />
           {!collapsed && (
             <div className="min-w-0 flex-1">
               <h5 className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
-                {currentUser.full_name}
+                {currentUser?.full_name || 'User'}
               </h5>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">

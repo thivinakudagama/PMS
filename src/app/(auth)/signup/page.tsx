@@ -44,14 +44,6 @@ export default function SignupPage() {
       });
 
       if (signUpError) {
-        // Fallback for demo mode if Supabase credentials are placeheld or inactive
-        if (signUpError.message.includes('dummy') || signUpError.message.includes('fetch')) {
-          setTimeout(() => {
-            setLoading(false);
-            router.push('/dashboard');
-          }, 600);
-          return;
-        }
         throw signUpError;
       }
 

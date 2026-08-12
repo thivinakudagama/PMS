@@ -9,17 +9,17 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<'profile' | 'org' | 'drive'>('profile');
 
   // User Profile
-  const [fullName, setFullName] = useState(currentUser.full_name || 'Alex Rivera');
-  const [jobTitle, setJobTitle] = useState(currentUser.job_title || 'Chief Technology Officer');
-  const [department, setDepartment] = useState(currentUser.department || 'Engineering');
+  const [fullName, setFullName] = useState(currentUser?.full_name || '');
+  const [jobTitle, setJobTitle] = useState(currentUser?.job_title || '');
+  const [department, setDepartment] = useState(currentUser?.department || '');
 
   // Organization
-  const [orgName, setOrgName] = useState(currentOrg?.name || 'Acme Global Corp');
-  const [slug, setSlug] = useState(currentOrg?.slug || 'acme-corp');
+  const [orgName, setOrgName] = useState(currentOrg?.name || '');
+  const [slug, setSlug] = useState(currentOrg?.slug || '');
 
   // Google Drive API
-  const [clientEmail, setClientEmail] = useState('pms-service-account@gcp-acme.iam.gserviceaccount.com');
-  const [folderId, setFolderId] = useState('1A2b3C4d5E6F7G8H9I0J_drive_folder');
+  const [clientEmail, setClientEmail] = useState('');
+  const [folderId, setFolderId] = useState('');
   const [saved, setSaved] = useState(false);
 
   const handleSave = (e: React.FormEvent) => {

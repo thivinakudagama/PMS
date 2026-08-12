@@ -39,7 +39,7 @@ export function CreateOrgModal({ isOpen, onClose, onSuccess }: CreateOrgModalPro
     try {
       const newOrgObj = await createOrganization(name, slug || name.toLowerCase().replace(/[^a-z0-9]/g, '-'));
       setLoading(false);
-      if (onSuccess) {
+      if (onSuccess && newOrgObj) {
         onSuccess(newOrgObj);
       }
       onClose();

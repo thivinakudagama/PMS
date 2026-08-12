@@ -46,7 +46,9 @@ export default function ChannelChatPage() {
     if (!inputContent.trim()) return;
 
     const newMsg = await sendMessage(currentChannel.id, inputContent);
-    setMessages((prev) => [...prev, newMsg]);
+    if (newMsg) {
+      setMessages((prev) => [...prev, newMsg]);
+    }
     setInputContent('');
   };
 
@@ -117,14 +119,16 @@ export default function ChannelChatPage() {
           {messages.map((msg) => (
             <div key={msg.id} className="flex items-start gap-3 group">
               <img
-                src={msg.sender?.avatar_url}
+                src={msg.sender?.avatar_url || 'https://www.gravatar.com/avatar/?d=mp'}
                 alt={msg.sender?.full_name}
                 className="w-9 h-9 rounded-full object-cover shrink-0 mt-0.5"
               />
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline gap-2">
                   <span className="text-xs font-bold text-slate-200">{msg.sender?.full_name}</span>
-                  <span className="text-[10px] text-slate-500">10:45 AM</span>
+                  <span className="text-[10px] text-slate-500">
+                    {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
                 </div>
                 <div className="mt-1 p-3 rounded-2xl bg-slate-800/80 border border-slate-700/60 text-xs text-slate-200 inline-block max-w-xl">
                   {msg.content}
@@ -132,6 +136,11 @@ export default function ChannelChatPage() {
               </div>
             </div>
           ))}
+          {messages.length === 0 && (
+            <div className="text-center text-slate-500 text-sm mt-10">
+              No messages yet in this channel!
+            </div>
+          )}
         </div>
 
         {/* Input Bar */}

@@ -2,9 +2,8 @@
 
 import React, { useState } from 'react';
 import { X, FolderKanban, Calendar, Users, Flag } from 'lucide-react';
-import { Project, ProjectPriority, ProjectStatus } from '@/types';
+import { Project, ProjectPriority, ProjectStatus, UserProfile } from '@/types';
 import { projectSchema } from '@/lib/validation';
-import { MOCK_PROFILES } from '@/lib/mock-data';
 import { useApp } from '@/context/app-context';
 
 interface ProjectFormProps {
@@ -15,14 +14,14 @@ interface ProjectFormProps {
 }
 
 export function ProjectForm({ isOpen, onClose, onSuccess, initialData }: ProjectFormProps) {
-  const { createProject, updateProject } = useApp();
+  const { createProject, updateProject, members } = useApp();
   const [title, setTitle] = useState(initialData?.title || '');
   const [description, setDescription] = useState(initialData?.description || '');
   const [status, setStatus] = useState<ProjectStatus>(initialData?.status || 'active');
   const [priority, setPriority] = useState<ProjectPriority>(initialData?.priority || 'medium');
   const [dueDate, setDueDate] = useState(initialData?.due_date ? initialData.due_date.split('T')[0] : '');
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>(
-    initialData?.members ? initialData.members.map((m) => m.id) : ['usr-1', 'usr-2']
+    initialData?.members ? initialData.members.map((m: any) => m.id) : []
   );
 
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +47,10 @@ export function ProjectForm({ isOpen, onClose, onSuccess, initialData }: Project
 
     setLoading(true);
     try {
-      const assignedMembers = MOCK_PROFILES.filter((p) => selectedAssignees.includes(p.id));
+      const assignedMembers = members
+        .map((m) => m.user)
+        .filter((p) => p && selectedAssignees.includes(p.id)) as UserProfile[];
+        
       if (initialData?.id) {
         await updateProject(initialData.id, {
           title,
@@ -67,7 +69,7 @@ export function ProjectForm({ isOpen, onClose, onSuccess, initialData }: Project
           due_date: dueDate ? new Date(dueDate).toISOString() : undefined,
           members: assignedMembers,
         });
-        if (onSuccess) onSuccess(newProj);
+        if (onSuccess && newProj) onSuccess(newProj);
       }
       setLoading(false);
       onClose();
@@ -171,7 +173,9 @@ export function ProjectForm({ isOpen, onClose, onSuccess, initialData }: Project
               Assign Team Members
             </label>
             <div className="flex flex-wrap gap-2 pt-1">
-              {MOCK_PROFILES.map((usr) => {
+              {members.map((m) => {
+                const usr = m.user;
+                if (!usr) return null;
                 const isSelected = selectedAssignees.includes(usr.id);
                 return (
                   <button
@@ -185,7 +189,7 @@ export function ProjectForm({ isOpen, onClose, onSuccess, initialData }: Project
                     }`}
                   >
                     <img
-                      src={usr.avatar_url}
+                      src={usr.avatar_url || 'https://www.gravatar.com/avatar/?d=mp'}
                       alt={usr.full_name}
                       className="w-4 h-4 rounded-full object-cover"
                     />

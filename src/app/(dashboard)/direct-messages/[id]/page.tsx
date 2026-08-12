@@ -4,42 +4,35 @@ import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Send, Paperclip, Search, Circle } from 'lucide-react';
-import { MOCK_PROFILES } from '@/lib/mock-data';
+import { useApp } from '@/context/app-context';
 import { Message } from '@/types';
 
 export default function DirectMessageUserPage() {
   const params = useParams();
-  const userId = (params?.id as string) || 'usr-2';
+  const userId = (params?.id as string);
+  const { members, currentUser } = useApp();
 
-  const recipient = MOCK_PROFILES.find((p) => p.id === userId) || MOCK_PROFILES[1];
+  const recipientMember = members.find((m) => m.user?.id === userId);
+  const recipient = recipientMember?.user;
 
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 'dm-1',
-      sender_id: 'usr-2',
-      sender: recipient,
-      content: 'Hey Alex, do you have a moment to review the SOC2 audit report draft?',
-      created_at: '2026-08-08T09:30:00Z',
-    },
-    {
-      id: 'dm-2',
-      sender_id: 'usr-1',
-      sender: MOCK_PROFILES[0],
-      content: 'Yes Sarah! Looking at it now in the Google Drive file explorer.',
-      created_at: '2026-08-08T09:32:00Z',
-    },
-  ]);
+  // Since we don't have a real direct messages table implemented yet in dataService,
+  // we'll just keep a local state for the UI demo purposes of the page,
+  // but it will reset on reload.
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputContent, setInputContent] = useState('');
+
+  if (!recipient) {
+    return <div className="p-8 text-center text-slate-400">User not found</div>;
+  }
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputContent.trim()) return;
+    if (!inputContent.trim() || !currentUser) return;
 
     const newMsg: Message = {
       id: `dm-${Date.now()}`,
-      sender_id: 'usr-1',
-      sender: MOCK_PROFILES[0],
-      receiver_id: recipient.id,
+      sender_id: currentUser.id,
+      sender: currentUser,
       content: inputContent,
       created_at: new Date().toISOString(),
     };
@@ -55,7 +48,8 @@ export default function DirectMessageUserPage() {
         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Direct Messages</h3>
 
         <div className="space-y-1 flex-1 overflow-y-auto">
-          {MOCK_PROFILES.slice(1).map((usr) => {
+          {members.filter(m => m.user && m.user.id !== currentUser?.id).map((m) => {
+            const usr = m.user!;
             const isActive = usr.id === recipient.id;
             return (
               <Link
@@ -69,7 +63,7 @@ export default function DirectMessageUserPage() {
               >
                 <div className="relative">
                   <img
-                    src={usr.avatar_url}
+                    src={usr.avatar_url || 'https://www.gravatar.com/avatar/?d=mp'}
                     alt={usr.full_name}
                     className="w-7 h-7 rounded-full object-cover"
                   />
@@ -94,7 +88,7 @@ export default function DirectMessageUserPage() {
           <div className="flex items-center gap-3">
             <div className="relative">
               <img
-                src={recipient.avatar_url}
+                src={recipient.avatar_url || 'https://www.gravatar.com/avatar/?d=mp'}
                 alt={recipient.full_name}
                 className="w-9 h-9 rounded-full object-cover"
               />
@@ -112,14 +106,16 @@ export default function DirectMessageUserPage() {
           {messages.map((msg) => (
             <div key={msg.id} className="flex items-start gap-3">
               <img
-                src={msg.sender?.avatar_url}
+                src={msg.sender?.avatar_url || 'https://www.gravatar.com/avatar/?d=mp'}
                 alt={msg.sender?.full_name}
                 className="w-8 h-8 rounded-full object-cover shrink-0 mt-0.5"
               />
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline gap-2">
                   <span className="text-xs font-bold text-slate-200">{msg.sender?.full_name}</span>
-                  <span className="text-[10px] text-slate-500">09:32 AM</span>
+                  <span className="text-[10px] text-slate-500">
+                    {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
                 </div>
                 <div className="mt-1 p-3 rounded-2xl bg-slate-800/80 border border-slate-700/60 text-xs text-slate-200 inline-block max-w-xl">
                   {msg.content}
@@ -127,6 +123,11 @@ export default function DirectMessageUserPage() {
               </div>
             </div>
           ))}
+          {messages.length === 0 && (
+            <div className="text-center text-slate-500 text-sm mt-10">
+              No messages yet. Send a message to start the conversation!
+            </div>
+          )}
         </div>
 
         {/* Input Bar */}

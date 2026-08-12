@@ -1,16 +1,19 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
-import { Bell, CheckCircle, ExternalLink, Filter } from 'lucide-react';
-import { MOCK_NOTIFICATIONS } from '@/lib/mock-data';
+import { Bell, CheckCircle, ExternalLink } from 'lucide-react';
+import { useApp } from '@/context/app-context';
 import { NotificationItem } from '@/types';
 
 export default function InboxPage() {
-  const [notifications, setNotifications] = useState<NotificationItem[]>(MOCK_NOTIFICATIONS);
+  const { notifications, markNotificationRead } = useApp();
 
   const markAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    notifications.forEach(n => {
+      if (!n.is_read) {
+        markNotificationRead(n.id);
+      }
+    });
   };
 
   return (
@@ -36,7 +39,7 @@ export default function InboxPage() {
 
       {/* Notifications List */}
       <div className="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl divide-y divide-slate-800/60">
-        {notifications.map((n) => (
+        {notifications.map((n: NotificationItem) => (
           <div
             key={n.id}
             className={`p-4 flex items-start justify-between gap-4 transition-colors ${
@@ -52,13 +55,16 @@ export default function InboxPage() {
               <div>
                 <h4 className="text-xs font-bold text-slate-100">{n.title}</h4>
                 <p className="text-xs text-slate-400 mt-0.5">{n.message}</p>
-                <span className="text-[10px] text-slate-500 font-mono mt-1 block">Today at 10:15 AM</span>
+                <span className="text-[10px] text-slate-500 font-mono mt-1 block">
+                  {new Date(n.created_at).toLocaleDateString()}
+                </span>
               </div>
             </div>
 
             {n.link && (
               <Link
                 href={n.link}
+                onClick={() => markNotificationRead(n.id)}
                 className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-brand-500 hover:text-white text-slate-300 text-xs font-semibold flex items-center gap-1 shrink-0 transition-all"
               >
                 <span>View</span>
@@ -67,6 +73,11 @@ export default function InboxPage() {
             )}
           </div>
         ))}
+        {notifications.length === 0 && (
+          <div className="p-8 text-center text-slate-400 text-sm">
+            No notifications yet!
+          </div>
+        )}
       </div>
     </div>
   );

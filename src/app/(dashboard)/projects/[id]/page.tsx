@@ -15,9 +15,9 @@ import {
   MoreHorizontal,
   ChevronRight,
 } from 'lucide-react';
-import { MOCK_PROJECTS, MOCK_TASKS, MOCK_FILES, MOCK_PROFILES } from '@/lib/mock-data';
 import { Task, TaskStatus } from '@/types';
 import { formatDate } from '@/lib/utils';
+import { useApp } from '@/context/app-context';
 
 const KANBAN_COLUMNS: { label: string; status: TaskStatus; color: string }[] = [
   { label: 'Backlog', status: 'backlog', color: 'border-slate-700 text-slate-400' },
@@ -29,31 +29,32 @@ const KANBAN_COLUMNS: { label: string; status: TaskStatus; color: string }[] = [
 
 export default function ProjectDetailsPage() {
   const params = useParams();
-  const projectId = (params?.id as string) || 'proj-101';
+  const projectId = (params?.id as string);
+  const { projects, tasks, currentUser, createTask } = useApp();
   
-  const project = MOCK_PROJECTS.find((p) => p.id === projectId) || MOCK_PROJECTS[0];
-  const [tasks, setTasks] = useState<Task[]>(MOCK_TASKS.filter((t) => t.project_id === project.id));
+  const project = projects.find((p) => p.id === projectId);
+  
+  // Need to filter tasks for this project
+  const projectTasks = tasks.filter((t) => t.project_id === projectId);
+  
   const [activeTab, setActiveTab] = useState<'kanban' | 'list' | 'files' | 'chat'>('kanban');
-
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [addingStatus, setAddingStatus] = useState<TaskStatus | null>(null);
 
-  const handleAddTask = (status: TaskStatus) => {
+  if (!project) {
+    return <div className="p-8 text-center text-slate-400">Project not found</div>;
+  }
+
+  const handleAddTask = async (status: TaskStatus) => {
     if (!newTaskTitle.trim()) return;
 
-    const newTask: Task = {
-      id: `task-${Date.now()}`,
-      project_id: project.id,
-      project_title: project.title,
+    await createTask({
       title: newTaskTitle,
+      project_id: project.id,
       status,
       priority: 'medium',
-      due_date: new Date(Date.now() + 86400000 * 7).toISOString(),
-      assignee: MOCK_PROFILES[2],
-      created_at: new Date().toISOString(),
-    };
+    });
 
-    setTasks((prev) => [...prev, newTask]);
     setNewTaskTitle('');
     setAddingStatus(null);
   };
@@ -79,10 +80,10 @@ export default function ProjectDetailsPage() {
 
           <div className="flex items-center gap-3">
             <div className="flex -space-x-2">
-              {(project.members || []).map((m, idx) => (
+              {(project.members || []).map((m: any, idx: number) => (
                 <img
                   key={idx}
-                  src={m.avatar_url}
+                  src={m.avatar_url || 'https://www.gravatar.com/avatar/?d=mp'}
                   alt={m.full_name}
                   className="w-8 h-8 rounded-full object-cover border-2 border-slate-900"
                   title={m.full_name}
@@ -116,7 +117,7 @@ export default function ProjectDetailsPage() {
                 : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
             }`}
           >
-            <CheckSquare className="w-4 h-4" /> Task List ({tasks.length})
+            <CheckSquare className="w-4 h-4" /> Task List ({projectTasks.length})
           </button>
 
           <button
@@ -147,7 +148,7 @@ export default function ProjectDetailsPage() {
       {activeTab === 'kanban' && (
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 overflow-x-auto pb-4">
           {KANBAN_COLUMNS.map((col) => {
-            const columnTasks = tasks.filter((t) => t.status === col.status);
+            const columnTasks = projectTasks.filter((t) => t.status === col.status);
 
             return (
               <div key={col.status} className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-3 flex flex-col min-w-[260px]">
@@ -187,7 +188,7 @@ export default function ProjectDetailsPage() {
                       <div className="pt-2 border-t border-slate-700/50 flex items-center justify-between">
                         <div className="flex items-center gap-1.5 text-[11px] text-slate-300">
                           <img
-                            src={task.assignee?.avatar_url}
+                            src={task.assignee?.avatar_url || 'https://www.gravatar.com/avatar/?d=mp'}
                             alt={task.assignee?.full_name}
                             className="w-5 h-5 rounded-full object-cover"
                           />
@@ -250,14 +251,14 @@ export default function ProjectDetailsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
-              {tasks.map((task) => (
+              {projectTasks.map((task) => (
                 <tr key={task.id} className="hover:bg-slate-800/50 transition-colors">
                   <td className="p-4 font-bold text-slate-100">{task.title}</td>
                   <td className="p-4 capitalize text-brand-400">{task.status.replace('_', ' ')}</td>
                   <td className="p-4 capitalize text-slate-300">{task.priority}</td>
                   <td className="p-4 flex items-center gap-2">
                     <img
-                      src={task.assignee?.avatar_url}
+                      src={task.assignee?.avatar_url || 'https://www.gravatar.com/avatar/?d=mp'}
                       alt={task.assignee?.full_name}
                       className="w-5 h-5 rounded-full object-cover"
                     />
@@ -298,7 +299,7 @@ export default function ProjectDetailsPage() {
             href="/channels/chan-2"
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-xs font-semibold shadow-md"
           >
-            Open #proj-cloud-infra Channel
+            Open Project Channel
           </Link>
         </div>
       )}

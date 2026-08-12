@@ -9,8 +9,8 @@ import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('alex.rivera@acme.com');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -34,18 +34,6 @@ export default function LoginPage() {
       });
 
       if (signInError) {
-        // Fallback for demo sign in if Supabase dummy key or local demo account is used
-        if (
-          email === 'alex.rivera@acme.com' ||
-          signInError.message.includes('dummy') ||
-          signInError.message.includes('fetch')
-        ) {
-          setTimeout(() => {
-            setLoading(false);
-            router.push('/dashboard');
-          }, 400);
-          return;
-        }
         throw signInError;
       }
 
@@ -134,13 +122,6 @@ export default function LoginPage() {
               Create Organization
             </Link>
           </p>
-        </div>
-
-        <div className="mt-4 p-3 rounded-xl bg-slate-800/40 border border-slate-800 text-left">
-          <p className="text-xs font-semibold text-slate-300 mb-1 flex items-center gap-1.5">
-            <CheckCircle className="w-3.5 h-3.5 text-indigo-400" /> Demo Quick Sign In
-          </p>
-          <p className="text-[11px] text-slate-400 font-mono">alex.rivera@acme.com (Admin)</p>
         </div>
       </div>
     </div>

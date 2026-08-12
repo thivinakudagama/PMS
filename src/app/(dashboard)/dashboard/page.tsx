@@ -37,7 +37,7 @@ export default function DashboardPage() {
             {currentOrg?.name || 'Acme Global Workspace'}
           </div>
           <h1 className="text-2xl md:text-3xl font-extrabold text-white">
-            Welcome back, {currentUser.full_name} 👋
+            Welcome back, {currentUser?.full_name || 'User'} 👋
           </h1>
           <p className="text-slate-300 text-xs md:text-sm mt-1">
             Here is your organizational project health and sprint summary for today.
