@@ -1,174 +1,151 @@
-'use client';
+import { notFound } from "next/navigation";
+import type { Message } from "@/lib/types";
+import { deleteMessage, editMessage, postChannelMessage, postThreadReply, toggleMessageReaction, uploadWorkspaceFile } from "@/app/(dashboard)/actions";
+import { requireModuleAccess } from "@/lib/current-org";
 
-import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
-import Link from 'next/link';
-import {
-  Hash,
-  Lock,
-  Send,
-  Paperclip,
-  Smile,
-  Plus,
-  Users,
-  Search,
-  CheckCheck,
-} from 'lucide-react';
-import { Message } from '@/types';
-import { useApp } from '@/context/app-context';
-import { dataService } from '@/lib/services/data-service';
+export default async function ChannelDetailPage({
+  params
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const { supabase, user, organizationId } = await requireModuleAccess("channels");
 
-export default function ChannelChatPage() {
-  const params = useParams();
-  const channelId = (params?.id as string) || 'chan-1';
-  const { channels, sendMessage, currentUser } = useApp();
+  const [{ data: channel }, { data: messages }, { data: members }] = await Promise.all([
+    supabase.from("channels").select("*").eq("organization_id", organizationId).eq("id", id).single(),
+    supabase.from("messages").select("*").eq("organization_id", organizationId).eq("channel_id", id).order("created_at"),
+    supabase.from("channel_members").select("user_id").eq("organization_id", organizationId).eq("channel_id", id)
+  ]);
 
-  const currentChannel = channels.find((c) => c.id === channelId) || channels[0] || {
-    id: 'chan-1',
-    name: 'general',
-    description: 'General team discussion channel',
-    is_private: false,
-  };
+  if (!channel) notFound();
 
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [inputContent, setInputContent] = useState('');
+  // Scope profiles to channel members only to prevent full DB scan
+  const memberUserIds = (members ?? []).map((m: { user_id: string }) => m.user_id);
+  const { data: profiles } = memberUserIds.length
+    ? await supabase.from("profiles").select("id, full_name").in("id", memberUserIds)
+    : { data: [] };
 
-  useEffect(() => {
-    async function loadMsgs() {
-      const list = await dataService.getMessages(currentChannel.id);
-      setMessages(list);
-    }
-    loadMsgs();
-  }, [currentChannel.id]);
-
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputContent.trim()) return;
-
-    const newMsg = await sendMessage(currentChannel.id, inputContent);
-    if (newMsg) {
-      setMessages((prev) => [...prev, newMsg]);
-    }
-    setInputContent('');
-  };
+  // Scope reactions to only messages in this channel
+  const messageList = (messages ?? []) as Message[];
+  const messageIds = messageList.map((m) => m.id);
+  const { data: reactions } = messageIds.length
+    ? await supabase.from("message_reactions").select("*").eq("organization_id", organizationId).in("message_id", messageIds)
+    : { data: [] };
+  const messageMap = new Map((profiles ?? []).map((profile: { id: string; full_name: string | null }) => [profile.id, profile.full_name || "Teammate"]));
+  const topLevelMessages = messageList.filter((message) => !message.parent_message_id);
 
   return (
-    <div className="h-[calc(100vh-7rem)] bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col md:flex-row">
-      {/* Channels Navigation Rail */}
-      <div className="w-full md:w-64 border-r border-slate-800 bg-slate-950/40 p-4 space-y-4 flex flex-col">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Channels</h3>
-          <button className="p-1 rounded-lg bg-slate-800 text-slate-400 hover:text-white">
-            <Plus className="w-4 h-4" />
-          </button>
-        </div>
-
-        <div className="space-y-1 flex-1 overflow-y-auto">
-          {channels.map((chan) => {
-            const isActive = chan.id === currentChannel.id;
-            return (
-              <Link
-                key={chan.id}
-                href={`/channels/${chan.id}`}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
-                  isActive
-                    ? 'bg-brand-500 text-white shadow-md shadow-brand-500/20'
-                    : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
-                }`}
-              >
-                <div className="flex items-center gap-2 truncate">
-                  {chan.is_private ? <Lock className="w-3.5 h-3.5" /> : <Hash className="w-3.5 h-3.5" />}
-                  <span className="truncate">{chan.name}</span>
-                </div>
-                {chan.unread_count && chan.unread_count > 0 ? (
-                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-white text-brand-600">
-                    {chan.unread_count}
-                  </span>
-                ) : null}
-              </Link>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Main Chat Feed */}
-      <div className="flex-1 flex flex-col min-w-0 bg-slate-900/50">
-        {/* Header */}
-        <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
-          <div className="flex items-center gap-2">
-            {currentChannel.is_private ? (
-              <Lock className="w-4 h-4 text-slate-400" />
-            ) : (
-              <Hash className="w-4 h-4 text-brand-400" />
-            )}
-            <div>
-              <h3 className="text-sm font-bold text-slate-100">{currentChannel.name}</h3>
-              <p className="text-[11px] text-slate-400 truncate">{currentChannel.description}</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] text-slate-400 flex items-center gap-1">
-              <Users className="w-3.5 h-3.5" /> 5 Members
-            </span>
+    <div className="page-stack">
+      <section className="project-hero">
+        <div>
+          <p className="eyebrow">Channel</p>
+          <h1>#{channel.slug}</h1>
+          <p>{channel.description || "A focused place for project conversation, coordination, and updates."}</p>
+          <div className="badge-row">
+            <span className="badge">{channel.type}</span>
+            <span className="badge">{channel.is_private ? "Private" : "Open to workspace"}</span>
+            <span className="badge">{(members ?? []).length} members</span>
           </div>
         </div>
+      </section>
 
-        {/* Messages Feed */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.map((msg) => (
-            <div key={msg.id} className="flex items-start gap-3 group">
-              <img
-                src={msg.sender?.avatar_url || 'https://www.gravatar.com/avatar/?d=mp'}
-                alt={msg.sender?.full_name}
-                className="w-9 h-9 rounded-full object-cover shrink-0 mt-0.5"
-              />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-xs font-bold text-slate-200">{msg.sender?.full_name}</span>
-                  <span className="text-[10px] text-slate-500">
-                    {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                </div>
-                <div className="mt-1 p-3 rounded-2xl bg-slate-800/80 border border-slate-700/60 text-xs text-slate-200 inline-block max-w-xl">
-                  {msg.content}
-                </div>
-              </div>
-            </div>
-          ))}
-          {messages.length === 0 && (
-            <div className="text-center text-slate-500 text-sm mt-10">
-              No messages yet in this channel!
-            </div>
-          )}
+      <section className="conversation-layout">
+        <div className="card conversation-card">
+          <div className="message-list">
+            {topLevelMessages.map((message) => {
+              const threadReplies = messageList.filter((reply) => reply.parent_message_id === message.id);
+              const groupedReactions = (reactions ?? []).filter((reaction: any) => reaction.message_id === message.id);
+
+              return (
+                <article className="message-card" id={`message-${message.id}`} key={message.id}>
+                  <div className="card-header">
+                    <div>
+                      <strong>{messageMap.get(message.sender_user_id) || "Teammate"}</strong>
+                      <p className="muted">{new Date(message.created_at).toLocaleString()}</p>
+                    </div>
+                    <div className="row-end">
+                      {["👍", "🔥", "✅"].map((emoji) => (
+                        <form action={toggleMessageReaction} key={emoji}>
+                          <input type="hidden" name="message_id" value={message.id} />
+                          <input type="hidden" name="channel_id" value={channel.id} />
+                          <input type="hidden" name="emoji" value={emoji} />
+                          <button className="button small" type="submit">
+                            {emoji} {groupedReactions.filter((reaction: any) => reaction.emoji === emoji).length || ""}
+                          </button>
+                        </form>
+                      ))}
+                    </div>
+                  </div>
+
+                  <p>{message.body}</p>
+
+                  {message.sender_user_id === user.id ? (
+                    <form action={editMessage} className="inline-form message-edit-form">
+                      <input type="hidden" name="message_id" value={message.id} />
+                      <input type="hidden" name="channel_id" value={channel.id} />
+                      <input name="body" defaultValue={message.body} aria-label="Edit message" />
+                      <button className="button small" type="submit">
+                        Save
+                      </button>
+                    </form>
+                  ) : null}
+
+                  <div className="thread-list">
+                    {threadReplies.map((reply) => (
+                      <div className="thread-item" key={reply.id}>
+                        <strong>{messageMap.get(reply.sender_user_id) || "Teammate"}</strong>
+                        <p className="muted">{reply.body}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {message.sender_user_id === user.id ? (
+                    <form action={deleteMessage}>
+                      <input type="hidden" name="message_id" value={message.id} />
+                      <input type="hidden" name="channel_id" value={channel.id} />
+                      <button className="button danger small" type="submit">
+                        Delete
+                      </button>
+                    </form>
+                  ) : null}
+
+                  <form action={postThreadReply} className="inline-form">
+                    <input type="hidden" name="parent_message_id" value={message.id} />
+                    <input type="hidden" name="channel_id" value={channel.id} />
+                    <input name="body" placeholder="Reply in thread..." />
+                    <button className="button small" type="submit">
+                      Reply
+                    </button>
+                  </form>
+                </article>
+              );
+            })}
+
+            {!topLevelMessages.length ? <p className="muted">No messages yet. Kick off the conversation below.</p> : null}
+          </div>
         </div>
 
-        {/* Input Bar */}
-        <div className="p-3 border-t border-slate-800 bg-slate-900">
-          <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-            <button
-              type="button"
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-              title="Attach Google Drive File"
-            >
-              <Paperclip className="w-4 h-4" />
+        <div className="page-stack">
+          <form action={postChannelMessage} className="card form-card">
+            <h2>New message</h2>
+            <input type="hidden" name="channel_id" value={channel.id} />
+            <textarea name="body" rows={4} placeholder="Share an update, decision, or blocker..." required />
+            <button className="button primary" type="submit">
+              Send
             </button>
-            <input
-              type="text"
-              value={inputContent}
-              onChange={(e) => setInputContent(e.target.value)}
-              placeholder={`Message #${currentChannel.name}...`}
-              className="flex-1 px-4 py-2.5 rounded-xl bg-slate-800/90 border border-slate-700/80 text-slate-100 placeholder-slate-500 text-xs focus:outline-none focus:border-brand-500"
-            />
-            <button
-              type="submit"
-              className="p-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white shadow-md shadow-brand-500/20 transition-all"
-            >
-              <Send className="w-4 h-4" />
+          </form>
+
+          <form action={uploadWorkspaceFile} className="card form-card">
+            <h2>Attach file</h2>
+            <input type="hidden" name="channel_id" value={channel.id} />
+            <input type="hidden" name="scope" value="channel" />
+            <input name="file" type="file" required />
+            <button className="button" type="submit">
+              Upload file
             </button>
           </form>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

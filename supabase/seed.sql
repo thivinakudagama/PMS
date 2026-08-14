@@ -1,2 +1,0 @@
--- Empty seed file
--- No dummy data will be inserted.

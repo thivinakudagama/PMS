@@ -1,90 +1,177 @@
-'use client';
+import { createRole, deleteRole, updateRole } from "@/app/(dashboard)/actions";
+import { requireModuleAccess } from "@/lib/current-org";
+import { ACTIONS, ACTION_LABELS, MODULES, MODULE_LABELS, can, type PermissionSet } from "@/lib/rbac";
 
-import { ShieldAlert, Check, X, Info } from 'lucide-react';
+type Role = {
+  id: string;
+  name: string;
+  description: string | null;
+  permissions: PermissionSet;
+  is_system: boolean;
+};
 
-const PERMISSION_MATRIX = [
-  { action: 'Manage Company Settings', admin: true, pm: false, member: false, viewer: false },
-  { action: 'Invite & Remove Members', admin: true, pm: true, member: false, viewer: false },
-  { action: 'Change Member RBAC Roles', admin: true, pm: false, member: false, viewer: false },
-  { action: 'Create & Delete Projects', admin: true, pm: true, member: false, viewer: false },
-  { action: 'Edit Project Settings & Due Dates', admin: true, pm: true, member: false, viewer: false },
-  { action: 'Create & Assign Tasks', admin: true, pm: true, member: true, viewer: false },
-  { action: 'Move Task Status (Kanban)', admin: true, pm: true, member: true, viewer: false },
-  { action: 'Upload Google Drive Files', admin: true, pm: true, member: true, viewer: false },
-  { action: 'Post Channel & Direct Messages', admin: true, pm: true, member: true, viewer: false },
-  { action: 'View Metrics & Analytics Reports', admin: true, pm: true, member: true, viewer: true },
-];
+type RolesPageProps = {
+  searchParams: Promise<{
+    error?: string;
+    message?: string;
+  }>;
+};
 
-export default function RolesMatrixPage() {
+export default async function RolesPage({ searchParams }: RolesPageProps) {
+  const params = await searchParams;
+  const { supabase, membership, organizationId } = await requireModuleAccess("roles");
+
+  const { data: roles } = await supabase
+    .from("roles")
+    .select("*")
+    .eq("organization_id", organizationId)
+    .order("created_at", { ascending: true });
+
+  const roleList = (roles ?? []) as Role[];
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-extrabold text-slate-100 flex items-center gap-2.5">
-          <ShieldAlert className="w-6 h-6 text-brand-400" /> RBAC Permission Matrix
-        </h1>
-        <p className="text-xs text-slate-400 mt-1">
-          Granular role-based access control matrix enforced at application and Supabase RLS database levels.
-        </p>
-      </div>
+    <div className="page-stack">
+      <section className="page-heading">
+        <div>
+          <p className="eyebrow">Access control</p>
+          <h1>Roles & Permissions</h1>
+          <p className="muted">
+            Perfex-style module permissions: View Global, View Own, Create, Edit, and Delete.
+          </p>
+        </div>
+      </section>
 
-      {/* Info Banner */}
-      <div className="p-4 rounded-2xl bg-brand-500/10 border border-brand-500/30 flex items-center gap-3">
-        <Info className="w-5 h-5 text-brand-400 shrink-0" />
-        <p className="text-xs text-brand-200">
-          Row Level Security (RLS) policies automatically isolate data and restrict write actions based on the user's role in <span className="font-mono text-white">public.organization_members</span>.
-        </p>
-      </div>
+      {params.error ? <div className="alert error">{params.error}</div> : null}
+      {params.message ? <div className="alert success">{params.message}</div> : null}
 
-      {/* Matrix Table */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
-        <table className="w-full text-left text-xs">
-          <thead className="bg-slate-950/60 border-b border-slate-800 text-slate-400 font-semibold">
-            <tr>
-              <th className="p-4">Action / Capability</th>
-              <th className="p-4 text-center">Admin</th>
-              <th className="p-4 text-center">Project Manager</th>
-              <th className="p-4 text-center">Member</th>
-              <th className="p-4 text-center">Viewer</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-800/60">
-            {PERMISSION_MATRIX.map((row, idx) => (
-              <tr key={idx} className="hover:bg-slate-800/50 transition-colors">
-                <td className="p-4 font-semibold text-slate-200">{row.action}</td>
-                <td className="p-4 text-center">
-                  {row.admin ? (
-                    <Check className="w-4 h-4 text-emerald-400 mx-auto" />
-                  ) : (
-                    <X className="w-4 h-4 text-slate-600 mx-auto" />
-                  )}
-                </td>
-                <td className="p-4 text-center">
-                  {row.pm ? (
-                    <Check className="w-4 h-4 text-emerald-400 mx-auto" />
-                  ) : (
-                    <X className="w-4 h-4 text-slate-600 mx-auto" />
-                  )}
-                </td>
-                <td className="p-4 text-center">
-                  {row.member ? (
-                    <Check className="w-4 h-4 text-emerald-400 mx-auto" />
-                  ) : (
-                    <X className="w-4 h-4 text-slate-600 mx-auto" />
-                  )}
-                </td>
-                <td className="p-4 text-center">
-                  {row.viewer ? (
-                    <Check className="w-4 h-4 text-emerald-400 mx-auto" />
-                  ) : (
-                    <X className="w-4 h-4 text-slate-600 mx-auto" />
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <section className="split-layout">
+        {can(membership, "roles", "create") ? (
+          <form action={createRole} className="card form-card">
+            <div>
+              <h2>Create role</h2>
+              <p className="muted">Create a reusable staff permission template.</p>
+            </div>
+
+            <label>
+              Role name
+              <input name="name" placeholder="Project Manager" required />
+            </label>
+
+            <label>
+              Description
+              <textarea name="description" rows={3} placeholder="What this role can do..." />
+            </label>
+
+            <div className="permission-matrix">
+              {MODULES.map((moduleName) => (
+                <div className="permission-module" key={moduleName}>
+                  <strong>{MODULE_LABELS[moduleName]}</strong>
+                  <div className="permission-actions">
+                    {ACTIONS.map((action) => (
+                      <label className="checkbox-label" key={action}>
+                        <input type="checkbox" name={`perm_${moduleName}`} value={action} />
+                        {ACTION_LABELS[action]}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button className="button primary" type="submit">
+              Create role
+            </button>
+          </form>
+        ) : (
+          <div className="card empty-state">
+            <h2>View-only access</h2>
+            <p className="muted">Your role does not allow creating roles.</p>
+          </div>
+        )}
+
+        <div className="page-stack">
+          {roleList.map((role) => (
+            <article className="card" key={role.id}>
+              <div className="card-header">
+                <div>
+                  <h2>{role.name}</h2>
+                  <p className="muted">{role.description || "No description."}</p>
+                </div>
+
+                {can(membership, "roles", "delete") && !role.is_system ? (
+                  <form action={deleteRole}>
+                    <input type="hidden" name="role_id" value={role.id} />
+                    <button className="button danger small" type="submit">
+                      Delete
+                    </button>
+                  </form>
+                ) : null}
+              </div>
+
+              {!role.is_system && can(membership, "roles", "edit") ? (
+                <form action={updateRole} className="form-stack">
+                  <input type="hidden" name="role_id" value={role.id} />
+                  <label>
+                    Role name
+                    <input name="name" defaultValue={role.name} required />
+                  </label>
+                  <label>
+                    Description
+                    <textarea name="description" rows={3} defaultValue={role.description ?? ""} />
+                  </label>
+                  <div className="permission-matrix">
+                    {MODULES.map((moduleName) => (
+                      <div className="permission-module" key={moduleName}>
+                        <strong>{MODULE_LABELS[moduleName]}</strong>
+                        <div className="permission-actions">
+                          {ACTIONS.map((action) => (
+                            <label className="checkbox-label" key={action}>
+                              <input
+                                type="checkbox"
+                                name={`perm_${moduleName}`}
+                                value={action}
+                                defaultChecked={(role.permissions?.[moduleName] ?? []).includes(action)}
+                              />
+                              {ACTION_LABELS[action]}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <button className="button primary" type="submit">
+                    Save role
+                  </button>
+                </form>
+              ) : (
+                <div className="role-permission-list">
+                  {MODULES.map((moduleName) => {
+                    const values = role.permissions?.[moduleName] ?? [];
+
+                    return (
+                      <div className="role-permission-row" key={moduleName}>
+                        <strong>{MODULE_LABELS[moduleName]}</strong>
+                        <span>
+                          {values.length
+                            ? values.map((value) => ACTION_LABELS[value]).join(", ")
+                            : "No access"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </article>
+          ))}
+
+          {!roleList.length ? (
+            <div className="card empty-state">
+              <h2>No roles yet</h2>
+              <p className="muted">Create your first staff role.</p>
+            </div>
+          ) : null}
+        </div>
+      </section>
     </div>
   );
 }

@@ -1,51 +1,44 @@
-'use client';
+import type { ActivityEvent } from "@/lib/types";
+import { requireModuleAccess } from "@/lib/current-org";
 
-import { Activity } from 'lucide-react';
-import { useApp } from '@/context/app-context';
+export default async function ActivityPage() {
+  const { supabase, organizationId } = await requireModuleAccess("dashboard");
 
-export default function ActivityTimelinePage() {
-  const { activities } = useApp();
+  const { data: events } = await supabase
+    .from("activity_events")
+    .select("*")
+    .eq("organization_id", organizationId)
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  const eventList = (events ?? []) as ActivityEvent[];
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-extrabold text-slate-100 flex items-center gap-2.5">
-          <Activity className="w-6 h-6 text-indigo-400" /> Company Activity Feed
-        </h1>
-        <p className="text-xs text-slate-400 mt-1">
-          Chronological audit trail of all project modifications, task updates, and file attachments.
-        </p>
-      </div>
+    <div className="page-stack">
+      <section className="page-heading">
+        <div>
+          <p className="eyebrow">Timeline</p>
+          <h1>Activity</h1>
+          <p className="muted">A running feed of project, task, file, and doc changes across the workspace.</p>
+        </div>
+      </section>
 
-      {/* Timeline Feed */}
-      <div className="p-6 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-2xl space-y-6">
-        {activities.map((act, idx) => (
-          <div key={act.id} className="relative flex items-start gap-4">
-            {/* Timeline Vertical Bar */}
-            {idx !== activities.length - 1 && (
-              <span className="absolute left-4 top-8 bottom-0 w-0.5 bg-slate-800" />
-            )}
-
-            <img
-              src={act.user?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
-              alt={act.user?.full_name || 'User'}
-              className="w-8 h-8 rounded-full object-cover z-10 border border-slate-700 shrink-0"
-            />
-
-            <div className="flex-1 bg-slate-800/50 border border-slate-700/60 rounded-xl p-4 space-y-1">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-slate-100">{act.user?.full_name || 'Team Member'}</span>
-                <span className="text-[10px] text-slate-500 font-mono">Just now</span>
+      <section className="card">
+        <div className="timeline-list">
+          {eventList.map((event) => (
+            <article className="timeline-item" key={event.id}>
+              <span className="timeline-dot" />
+              <div>
+                <strong>{event.title}</strong>
+                <p className="muted">{event.detail || `${event.entity_type} · ${event.event_type}`}</p>
+                <small>{new Date(event.created_at).toLocaleString()}</small>
               </div>
-              <p className="text-xs text-slate-300">
-                <span className="text-slate-400">{act.action}</span>{' '}
-                <span className="font-bold text-indigo-300">"{act.entity_title || act.entity_type}"</span>
-              </p>
-            </div>
-          </div>
-        ))}
-      </div>
+            </article>
+          ))}
+
+          {!eventList.length ? <p className="muted">Activity will appear here as your team starts collaborating.</p> : null}
+        </div>
+      </section>
     </div>
   );
 }

@@ -1,120 +1,238 @@
-import { google } from 'googleapis';
+import { createSign } from "node:crypto";
 
-export interface DriveFileMetadata {
+const DRIVE_API = "https://www.googleapis.com/drive/v3";
+const DRIVE_UPLOAD_API = "https://www.googleapis.com/upload/drive/v3/files";
+const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
+const TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
+
+type GoogleDriveConfig = {
+  clientEmail: string;
+  privateKey: string;
+  rootFolderId: string;
+};
+
+type GoogleDriveFile = {
   id: string;
   name: string;
-  mimeType: string;
-  size?: number;
-  webViewLink?: string;
-  thumbnailLink?: string;
+  webViewLink?: string | null;
+  webContentLink?: string | null;
+  parents?: string[];
+  mimeType?: string;
+  size?: string;
+};
+
+let tokenCache: { token: string; expiresAt: number } | null = null;
+
+function getConfig(): GoogleDriveConfig {
+  const clientEmail = process.env.GOOGLE_DRIVE_CLIENT_EMAIL;
+  const privateKey = process.env.GOOGLE_DRIVE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+  const rootFolderId = process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID;
+
+  if (!clientEmail || !privateKey || !rootFolderId) {
+    throw new Error(
+      "Missing Google Drive configuration. Set GOOGLE_DRIVE_CLIENT_EMAIL, GOOGLE_DRIVE_PRIVATE_KEY, and GOOGLE_DRIVE_ROOT_FOLDER_ID."
+    );
+  }
+
+  return { clientEmail, privateKey, rootFolderId };
 }
 
-export class GoogleDriveService {
-  private drive;
-
-  constructor() {
-    const clientEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-    const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
-
-    if (clientEmail && privateKey) {
-      const auth = new google.auth.JWT({
-        email: clientEmail,
-        key: privateKey,
-        scopes: ['https://www.googleapis.com/auth/drive'],
-      });
-      this.drive = google.drive({ version: 'v3', auth });
-    } else {
-      this.drive = null;
-    }
-  }
-
-  public isConfigured(): boolean {
-    return !!this.drive;
-  }
-
-  /**
-   * Create an Organization or Project Folder in Google Drive
-   */
-  async createFolder(folderName: string, parentFolderId?: string): Promise<string> {
-    if (!this.drive) {
-      console.warn('Google Drive API not configured. Returning mock folder ID.');
-      return `mock-folder-${Date.now()}`;
-    }
-
-    try {
-      const fileMetadata: any = {
-        name: folderName,
-        mimeType: 'application/vnd.google-apps.folder',
-      };
-
-      if (parentFolderId) {
-        fileMetadata.parents = [parentFolderId];
-      }
-
-      const res = await this.drive.files.create({
-        requestBody: fileMetadata,
-        fields: 'id',
-      });
-
-      return res.data.id || `folder-${Date.now()}`;
-    } catch (error) {
-      console.error('Error creating Google Drive folder:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get File Metadata from Google Drive
-   */
-  async getFileMetadata(fileId: string): Promise<DriveFileMetadata | null> {
-    if (!this.drive) {
-      return {
-        id: fileId,
-        name: 'Mock_Document.pdf',
-        mimeType: 'application/pdf',
-        size: 1024 * 1024 * 2.5,
-        webViewLink: 'https://drive.google.com/file/d/mock/view',
-      };
-    }
-
-    try {
-      const res = await this.drive.files.get({
-        fileId,
-        fields: 'id, name, mimeType, size, webViewLink, thumbnailLink',
-      });
-
-      return {
-        id: res.data.id || fileId,
-        name: res.data.name || 'Untitled File',
-        mimeType: res.data.mimeType || 'application/octet-stream',
-        size: res.data.size ? parseInt(res.data.size, 10) : undefined,
-        webViewLink: res.data.webViewLink || undefined,
-        thumbnailLink: res.data.thumbnailLink || undefined,
-      };
-    } catch (error) {
-      console.error('Error fetching file metadata from Google Drive:', error);
-      return null;
-    }
-  }
-
-  /**
-   * Share file with anyone with link or specific user email
-   */
-  async makeFileReadable(fileId: string): Promise<void> {
-    if (!this.drive) return;
-
-    try {
-      await this.drive.permissions.create({
-        fileId,
-        requestBody: {
-          role: 'reader',
-          type: 'anyone',
-        },
-      });
-    } catch (error) {
-      console.error('Error updating Google Drive permissions:', error);
-    }
-  }
+function base64UrlEncode(value: string | Buffer) {
+  return Buffer.from(value)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
 }
 
-export const googleDriveService = new GoogleDriveService();
+async function getAccessToken() {
+  if (tokenCache && tokenCache.expiresAt > Date.now() + 30_000) {
+    return tokenCache.token;
+  }
+
+  const { clientEmail, privateKey } = getConfig();
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: "RS256", typ: "JWT" };
+  const payload = {
+    iss: clientEmail,
+    scope: DRIVE_SCOPE,
+    aud: TOKEN_ENDPOINT,
+    exp: now + 3600,
+    iat: now
+  };
+
+  const unsigned = `${base64UrlEncode(JSON.stringify(header))}.${base64UrlEncode(JSON.stringify(payload))}`;
+  const signer = createSign("RSA-SHA256");
+  signer.update(unsigned);
+  signer.end();
+  const signature = signer.sign(privateKey);
+  const assertion = `${unsigned}.${base64UrlEncode(signature)}`;
+
+  const response = await fetch(TOKEN_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Unable to authenticate with Google Drive: ${await response.text()}`);
+  }
+
+  const json = (await response.json()) as { access_token: string; expires_in: number };
+  tokenCache = {
+    token: json.access_token,
+    expiresAt: Date.now() + json.expires_in * 1000
+  };
+
+  return json.access_token;
+}
+
+async function driveFetch(path: string, init: RequestInit = {}) {
+  const accessToken = await getAccessToken();
+  const response = await fetch(path, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      ...(init.headers ?? {})
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Google Drive request failed: ${response.status} ${await response.text()}`);
+  }
+
+  return response;
+}
+
+function escapeDriveQueryValue(value: string) {
+  return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
+
+async function findFolder(name: string, parentId: string) {
+  const query = [
+    `mimeType = 'application/vnd.google-apps.folder'`,
+    `trashed = false`,
+    `'${parentId}' in parents`,
+    `name = '${escapeDriveQueryValue(name)}'`
+  ].join(" and ");
+
+  const response = await driveFetch(
+    `${DRIVE_API}/files?${new URLSearchParams({
+      q: query,
+      fields: "files(id,name,parents)",
+      includeItemsFromAllDrives: "true",
+      supportsAllDrives: "true"
+    })}`
+  );
+
+  const json = (await response.json()) as { files?: GoogleDriveFile[] };
+  return json.files?.[0] ?? null;
+}
+
+async function createFolder(name: string, parentId: string) {
+  const response = await driveFetch(`${DRIVE_API}/files?supportsAllDrives=true`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name,
+      parents: [parentId],
+      mimeType: "application/vnd.google-apps.folder"
+    })
+  });
+
+  return (await response.json()) as GoogleDriveFile;
+}
+
+export async function ensureDriveFolder(name: string, parentId: string) {
+  const existing = await findFolder(name, parentId);
+  if (existing) return existing;
+  return createFolder(name, parentId);
+}
+
+export async function ensureProjectDriveFolders(workspaceName: string, projectName?: string | null, scope?: string) {
+  const { rootFolderId } = getConfig();
+
+  const workspaceFolder = await ensureDriveFolder(workspaceName, rootFolderId);
+
+  if (!projectName) {
+    return {
+      rootFolderId,
+      workspaceFolder,
+      projectFolder: null,
+      scopeFolder: workspaceFolder
+    };
+  }
+
+  const projectFolder = await ensureDriveFolder(projectName, workspaceFolder.id);
+  const scopeFolder =
+    scope && !["workspace", "project"].includes(scope)
+      ? await ensureDriveFolder(scope.charAt(0).toUpperCase() + scope.slice(1), projectFolder.id)
+      : projectFolder;
+
+  return {
+    rootFolderId,
+    workspaceFolder,
+    projectFolder,
+    scopeFolder
+  };
+}
+
+export async function uploadFileToDrive(input: {
+  file: File;
+  folderId: string;
+  fileName: string;
+}) {
+  const metadata = {
+    name: input.fileName,
+    parents: [input.folderId]
+  };
+
+  const boundary = `drive-upload-${Date.now()}`;
+  const fileBuffer = Buffer.from(await input.file.arrayBuffer());
+  const body = Buffer.concat([
+    Buffer.from(
+      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n`
+    ),
+    Buffer.from(`--${boundary}\r\nContent-Type: ${input.file.type || "application/octet-stream"}\r\n\r\n`),
+    fileBuffer,
+    Buffer.from(`\r\n--${boundary}--`)
+  ]);
+
+  const response = await driveFetch(`${DRIVE_UPLOAD_API}?uploadType=multipart&supportsAllDrives=true`, {
+    method: "POST",
+    headers: {
+      "Content-Type": `multipart/related; boundary=${boundary}`
+    },
+    body
+  });
+
+  const uploaded = (await response.json()) as GoogleDriveFile;
+
+  const permissionResponse = await driveFetch(`${DRIVE_API}/files/${uploaded.id}/permissions?supportsAllDrives=true`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      role: "reader",
+      type: "anyone"
+    })
+  });
+  await permissionResponse.json();
+
+  const detailsResponse = await driveFetch(
+    `${DRIVE_API}/files/${uploaded.id}?${new URLSearchParams({
+      fields: "id,name,parents,webViewLink,webContentLink,mimeType,size",
+      supportsAllDrives: "true"
+    })}`
+  );
+
+  return (await detailsResponse.json()) as GoogleDriveFile;
+}
+
+export async function deleteDriveFile(fileId: string) {
+  await driveFetch(`${DRIVE_API}/files/${fileId}?supportsAllDrives=true`, {
+    method: "DELETE"
+  });
+}

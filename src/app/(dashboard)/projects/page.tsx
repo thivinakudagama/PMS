@@ -1,194 +1,87 @@
-'use client';
+import type { Project, Task } from "@/lib/types";
+import { ProjectForm } from "@/components/project-form";
+import { ProjectCard } from "@/components/project-card";
+import { requireModuleAccess } from "@/lib/current-org";
+import { can } from "@/lib/rbac";
 
-import { useState } from 'react';
-import Link from 'next/link';
-import { FolderKanban, Plus, Search, LayoutGrid, List } from 'lucide-react';
-import { Project } from '@/types';
-import { ProjectCard } from '@/components/ui/project-card';
-import { ProjectForm } from '@/components/ui/project-form';
-import { useApp } from '@/context/app-context';
+type ProjectsPageProps = {
+  searchParams: Promise<{
+    error?: string;
+    message?: string;
+  }>;
+};
 
-export default function ProjectsPage() {
-  const { projects, currentUserRole } = useApp();
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingProject, setEditingProject] = useState<Project | null>(null);
+export default async function ProjectsPage({ searchParams }: ProjectsPageProps) {
+  const params = await searchParams;
+  const { supabase, membership, organizationId, user } = await requireModuleAccess("projects");
 
-  const filteredProjects = projects.filter((p) => {
-    const matchesSearch =
-      p.title.toLowerCase().includes(search.toLowerCase()) ||
-      (p.description && p.description.toLowerCase().includes(search.toLowerCase()));
-    const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  // RBAC Scoping Logic
+  const canViewGlobalProjects = can(membership, "projects", "view_global");
+  let projectsQuery = supabase.from("projects").select("*").eq("organization_id", organizationId).order("created_at", { ascending: false });
+  
+  if (!canViewGlobalProjects) {
+    const { data: myMemberships } = await supabase.from("project_members").select("project_id").eq("user_id", user.id);
+    const myProjectIds = (myMemberships ?? []).map((m: any) => m.project_id);
+    if (myProjectIds.length > 0) {
+      projectsQuery = projectsQuery.or(`owner_id.eq.${user.id},id.in.(${myProjectIds.join(",")})`);
+    } else {
+      projectsQuery = projectsQuery.eq("owner_id", user.id);
+    }
+  }
 
-  const handleCreateSuccess = (newProject: Project) => {
-    // Handled in AppContext
-  };
+  const canViewGlobalTasks = can(membership, "tasks", "view_global");
+  let tasksQuery = supabase.from("tasks").select("*").eq("organization_id", organizationId);
+  if (!canViewGlobalTasks) {
+    tasksQuery = tasksQuery.or(`owner_id.eq.${user.id},assignee_user_id.eq.${user.id}`);
+  }
 
+  const [{ data: projects }, { data: tasks }] = await Promise.all([
+    projectsQuery,
+    tasksQuery
+  ]);
+
+  const projectList = (projects ?? []) as Project[];
+  const taskList = (tasks ?? []) as Task[];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="page-stack">
+      <section className="page-heading">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-2.5">
-            <FolderKanban className="w-6 h-6 text-indigo-600 dark:text-indigo-400" /> Company Projects
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Manage, organize, and monitor project milestones across teams.
-          </p>
+          <p className="eyebrow">Portfolio</p>
+          <h1>Projects</h1>
+          <p className="muted">Create, monitor, and organize all active project work.</p>
         </div>
+      </section>
 
-        {(currentUserRole === 'Admin' || currentUserRole === 'Project Manager') && (
-          <button
-            onClick={() => {
-              setEditingProject(null);
-              setIsModalOpen(true);
-            }}
-            className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-lg shadow-indigo-500/25 flex items-center gap-2 transition-all self-start sm:self-auto"
-          >
-            <Plus className="w-4 h-4" /> Create Project
-          </button>
+      {params.error ? <div className="alert error">{params.error}</div> : null}
+      {params.message ? <div className="alert success">{params.message}</div> : null}
+
+      <section className="split-layout">
+        {can(membership, "projects", "create") ? (
+          <ProjectForm />
+        ) : (
+          <div className="card empty-state">
+            <h2>View-only access</h2>
+            <p className="muted">Your role does not allow project creation.</p>
+          </div>
         )}
-      </div>
 
-      {/* Filter & Search Bar */}
-      <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          <div className="relative flex-1 md:w-72">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Filter projects by title..."
-              className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 placeholder-slate-400 text-xs focus:outline-none focus:border-indigo-500"
+        <div className="project-grid">
+          {projectList.map((project) => (
+            <ProjectCard
+              key={project.id}
+              project={project}
+              tasks={taskList.filter((task) => task.project_id === project.id)}
             />
-          </div>
-
-          <div className="flex items-center gap-1 overflow-x-auto pb-1 md:pb-0">
-            {['all', 'active', 'planning', 'completed'].map((st) => (
-              <button
-                key={st}
-                onClick={() => setStatusFilter(st)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-colors ${
-                  statusFilter === st
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-                }`}
-              >
-                {st}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 self-end md:self-auto">
-          <div className="p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center gap-1">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`p-1.5 rounded-lg text-xs transition-colors ${
-                viewMode === 'grid'
-                  ? 'bg-indigo-600 text-white'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <LayoutGrid className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`p-1.5 rounded-lg text-xs transition-colors ${
-                viewMode === 'list'
-                  ? 'bg-indigo-600 text-white'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <List className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Grid or List View */}
-      {viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filteredProjects.map((project) => (
-            <ProjectCard key={project.id} project={project} onEdit={(currentUserRole === 'Admin' || currentUserRole === 'Project Manager') ? (p) => {
-              setEditingProject(p);
-              setIsModalOpen(true);
-            } : undefined} />
           ))}
+          {!projectList.length ? (
+            <div className="card empty-state">
+              <h2>No projects</h2>
+              <p className="muted">Get started by creating a new project workspace.</p>
+            </div>
+          ) : null}
         </div>
-      ) : (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-xl overflow-hidden shadow-sm">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 dark:bg-slate-950/60 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-semibold">
-              <tr>
-                <th className="p-4">Project Title</th>
-                <th className="p-4">Status</th>
-                <th className="p-4">Priority</th>
-                <th className="p-4">Progress</th>
-                <th className="p-4 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-              {filteredProjects.map((p) => {
-                const total = p.task_count || 10;
-                const done = p.completed_task_count || 4;
-                const percent = Math.round((done / total) * 100);
-
-                return (
-                  <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                    <td className="p-4 font-bold text-slate-900 dark:text-slate-100">
-                      <Link href={`/projects/${p.id}`} className="hover:text-indigo-600 dark:hover:text-indigo-400">
-                        {p.title}
-                      </Link>
-                    </td>
-                    <td className="p-4 capitalize text-indigo-600 dark:text-indigo-400 font-semibold">{p.status}</td>
-                    <td className="p-4 capitalize text-slate-600 dark:text-slate-300">{p.priority}</td>
-                    <td className="p-4 font-semibold text-indigo-600 dark:text-indigo-400">{percent}%</td>
-                    <td className="p-4 text-right flex items-center justify-end gap-2">
-                      {(currentUserRole === 'Admin' || currentUserRole === 'Project Manager') && (
-                        <button
-                          onClick={() => {
-                            setEditingProject(p);
-                            setIsModalOpen(true);
-                          }}
-                          className="px-3 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-[11px] font-semibold transition-colors"
-                        >
-                          Edit
-                        </button>
-                      )}
-                      <Link
-                        href={`/projects/${p.id}`}
-                        className="px-3 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-[11px] font-semibold transition-colors"
-                      >
-                        View Details
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* New/Edit Project Modal */}
-      {isModalOpen && (
-        <ProjectForm
-          isOpen={isModalOpen}
-          onClose={() => {
-            setIsModalOpen(false);
-            setEditingProject(null);
-          }}
-          onSuccess={handleCreateSuccess}
-          initialData={editingProject || undefined}
-        />
-      )}
+      </section>
     </div>
   );
 }

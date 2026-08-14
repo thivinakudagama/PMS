@@ -1,85 +1,86 @@
-import { OrgRole } from '@/types/database.types';
+export const MODULES = [
+  "dashboard",
+  "projects",
+  "tasks",
+  "team",
+  "roles",
+  "reports",
+  "files",
+  "settings",
+  "channels",
+  "messages",
+  "docs",
+  "automation",
+  "search",
+  "notifications"
+] as const;
 
-export type PermissionAction =
-  | 'org:update'
-  | 'org:delete'
-  | 'member:invite'
-  | 'member:remove'
-  | 'member:role_change'
-  | 'project:create'
-  | 'project:edit'
-  | 'project:delete'
-  | 'task:create'
-  | 'task:edit'
-  | 'task:delete'
-  | 'task:assign'
-  | 'channel:create'
-  | 'channel:post'
-  | 'file:upload'
-  | 'file:delete'
-  | 'report:view';
-
-const ROLE_PERMISSIONS: Record<OrgRole, PermissionAction[]> = {
-  Admin: [
-    'org:update',
-    'org:delete',
-    'member:invite',
-    'member:remove',
-    'member:role_change',
-    'project:create',
-    'project:edit',
-    'project:delete',
-    'task:create',
-    'task:edit',
-    'task:delete',
-    'task:assign',
-    'channel:create',
-    'channel:post',
-    'file:upload',
-    'file:delete',
-    'report:view',
-  ],
-  'Project Manager': [
-    'member:invite',
-    'project:create',
-    'project:edit',
-    'task:create',
-    'task:edit',
-    'task:delete',
-    'task:assign',
-    'channel:create',
-    'channel:post',
-    'file:upload',
-    'file:delete',
-    'report:view',
-  ],
-  Member: [
-    'task:create',
-    'task:edit',
-    'task:assign',
-    'channel:post',
-    'file:upload',
-    'report:view',
-  ],
-  Viewer: [
-    'report:view',
-  ],
+export const MODULE_LABELS: Record<(typeof MODULES)[number], string> = {
+  dashboard: "Dashboard",
+  projects: "Projects",
+  tasks: "Tasks",
+  team: "Team / Staff",
+  roles: "Roles & Permissions",
+  reports: "Reports",
+  files: "Files",
+  settings: "Settings",
+  channels: "Channels",
+  messages: "Messages",
+  docs: "Docs",
+  automation: "Automation",
+  search: "Search",
+  notifications: "Notifications"
 };
 
-export function hasPermission(role: OrgRole | null | undefined, action: PermissionAction): boolean {
-  if (!role) return false;
-  const permissions = ROLE_PERMISSIONS[role] || [];
-  return permissions.includes(action);
+export const ACTIONS = ["view_global", "view_own", "create", "edit", "delete"] as const;
+
+export const ACTION_LABELS: Record<(typeof ACTIONS)[number], string> = {
+  view_global: "View Global",
+  view_own: "View Own",
+  create: "Create",
+  edit: "Edit",
+  delete: "Delete"
+};
+
+export type ModuleName = (typeof MODULES)[number];
+export type PermissionAction = (typeof ACTIONS)[number];
+export type PermissionSet = Partial<Record<ModuleName, PermissionAction[]>>;
+
+export type RoleLike = {
+  name?: string | null;
+  permissions?: PermissionSet | null;
+};
+
+export type MembershipLike = {
+  is_admin?: boolean | null;
+  permissions_override?: PermissionSet | null;
+  roles?: RoleLike | RoleLike[] | null;
+};
+
+export function resolveRole(membership: MembershipLike | null | undefined): RoleLike | null {
+  if (!membership?.roles) return null;
+  return Array.isArray(membership.roles) ? membership.roles[0] ?? null : membership.roles;
 }
 
-export function canManageProject(role: OrgRole | null | undefined): boolean {
-  return role === 'Admin' || role === 'Project Manager';
+export function getEffectivePermissions(membership: MembershipLike | null | undefined): PermissionSet {
+  if (!membership) return {};
+  if (membership.permissions_override) return membership.permissions_override;
+  return resolveRole(membership)?.permissions ?? {};
 }
 
-export function canManageTasks(role: OrgRole | null | undefined): boolean {
-  return role === 'Admin' || role === 'Project Manager' || role === 'Member';
+export function can(
+  membership: MembershipLike | null | undefined,
+  moduleName: ModuleName,
+  action: PermissionAction
+) {
+  if (membership?.is_admin) return true;
+
+  const permissions = getEffectivePermissions(membership);
+  const actions = permissions[moduleName] ?? [];
+
+  return actions.includes(action);
 }
 
-export function isOrgAdmin(role: OrgRole | null | undefined): boolean {
-  return role === 'Admin';
+export function canView(membership: MembershipLike | null | undefined, moduleName: ModuleName) {
+  return can(membership, moduleName, "view_global") || can(membership, moduleName, "view_own");
 }

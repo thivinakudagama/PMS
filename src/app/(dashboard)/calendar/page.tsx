@@ -1,104 +1,86 @@
-'use client';
+import Link from "next/link";
+import type { Project, Task } from "@/lib/types";
+import { StatusBadge } from "@/components/status-badge";
+import { requireModuleAccess } from "@/lib/current-org";
 
-import { useState } from 'react';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, Plus } from 'lucide-react';
-import { formatDate } from '@/lib/utils';
-import { useApp } from '@/context/app-context';
+import { can } from "@/lib/rbac";
 
-export default function CalendarPage() {
-  const { tasks } = useApp();
-  const [currentMonth] = useState('August 2026');
+export default async function CalendarPage() {
+  const { supabase, membership, organizationId, user } = await requireModuleAccess("dashboard");
 
-  // Days in August 2026
-  const daysInMonth = Array.from({ length: 31 }, (_, i) => i + 1);
+  // RBAC Scoping Logic
+  const canViewGlobalProjects = can(membership, "projects", "view_global");
+  let projectsQuery = supabase.from("projects").select("*").eq("organization_id", organizationId).not("due_date", "is", null);
+  
+  if (!canViewGlobalProjects) {
+    const { data: myMemberships } = await supabase.from("project_members").select("project_id").eq("user_id", user.id);
+    const myProjectIds = (myMemberships ?? []).map((m: any) => m.project_id);
+    if (myProjectIds.length > 0) {
+      projectsQuery = projectsQuery.or(`owner_id.eq.${user.id},id.in.(${myProjectIds.join(",")})`);
+    } else {
+      projectsQuery = projectsQuery.eq("owner_id", user.id);
+    }
+  }
+
+  const canViewGlobalTasks = can(membership, "tasks", "view_global");
+  let tasksQuery = supabase.from("tasks").select("*").eq("organization_id", organizationId).not("due_date", "is", null);
+  
+  if (!canViewGlobalTasks) {
+    tasksQuery = tasksQuery.or(`owner_id.eq.${user.id},assignee_user_id.eq.${user.id}`);
+  }
+
+  const [{ data: projects }, { data: tasks }] = await Promise.all([
+    projectsQuery,
+    tasksQuery
+  ]);
+
+  const items = [
+    ...((projects ?? []) as Project[]).map((project) => ({
+      id: project.id,
+      date: project.due_date!,
+      title: project.name,
+      type: "Project deadline",
+      status: project.status,
+      href: `/projects/${project.id}`
+    })),
+    ...((tasks ?? []) as Task[]).map((task) => ({
+      id: task.id,
+      date: task.due_date!,
+      title: task.title,
+      type: "Task due",
+      status: task.status,
+      href: `/projects/${task.project_id}?view=tasks`
+    }))
+  ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="page-stack">
+      <section className="page-heading">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-100 flex items-center gap-2.5">
-            <CalendarIcon className="w-6 h-6 text-indigo-400" /> Milestone & Task Calendar
-          </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Track key project release dates, task deadlines, and sprint milestones.
-          </p>
+          <p className="eyebrow">Schedule</p>
+          <h1>Calendar</h1>
+          <p className="muted">A deadline-focused view of projects and tasks you can access.</p>
         </div>
+      </section>
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-xl p-1.5 text-xs">
-            <button className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800">
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="font-bold text-slate-200 px-2">{currentMonth}</span>
-            <button className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800">
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Calendar Grid Container */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl p-4 space-y-4">
-        {/* Day Headers */}
-        <div className="grid grid-cols-7 text-center text-xs font-bold text-slate-400 border-b border-slate-800/80 pb-2">
-          <div>SUN</div>
-          <div>MON</div>
-          <div>TUE</div>
-          <div>WED</div>
-          <div>THU</div>
-          <div>FRI</div>
-          <div>SAT</div>
-        </div>
-
-        {/* Days Grid */}
-        <div className="grid grid-cols-7 gap-2">
-          {daysInMonth.map((day) => {
-            const isToday = day === 9;
-            const dayTasks = tasks.filter((t) => {
-              if (!t.due_date) return false;
-              const d = new Date(t.due_date);
-              return d.getDate() === day;
-            });
-
-            return (
-              <div
-                key={day}
-                className={`min-h-[100px] p-2 rounded-xl border flex flex-col justify-between transition-all ${
-                  isToday
-                    ? 'bg-indigo-500/10 border-indigo-500/50 shadow-md'
-                    : 'bg-slate-800/40 border-slate-800/80 hover:border-slate-700'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span
-                    className={`text-xs font-bold ${
-                      isToday
-                        ? 'w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center'
-                        : 'text-slate-300'
-                    }`}
-                  >
-                    {day}
-                  </span>
-                  {isToday && <span className="text-[9px] font-extrabold uppercase text-indigo-400">Today</span>}
-                </div>
-
-                <div className="space-y-1 my-1">
-                  {dayTasks.map((t) => (
-                    <div
-                      key={t.id}
-                      className="p-1 rounded bg-indigo-500/20 border border-indigo-500/40 text-[10px] font-bold text-indigo-300 truncate"
-                      title={t.title}
-                    >
-                      {t.title}
-                    </div>
-                  ))}
-                </div>
+      <section className="card">
+        <div className="list-stack">
+          {items.map((item) => (
+            <Link className="list-row" href={item.href} key={`${item.type}-${item.id}`}>
+              <div>
+                <strong>{item.title}</strong>
+                <p className="muted">{item.type}</p>
               </div>
-            );
-          })}
+              <div className="row-end">
+                <StatusBadge value={item.status} />
+                <span>{item.date}</span>
+              </div>
+            </Link>
+          ))}
+
+          {!items.length ? <p className="muted">No upcoming deadlines yet.</p> : null}
         </div>
-      </div>
+      </section>
     </div>
   );
 }

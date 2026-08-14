@@ -1,160 +1,119 @@
-'use client';
+import { notFound } from "next/navigation";
+import type { Message } from "@/lib/types";
+import { deleteMessage, editMessage, postDirectMessage, postThreadReply } from "@/app/(dashboard)/actions";
+import { requireModuleAccess } from "@/lib/current-org";
 
-import { useState } from 'react';
-import { useParams } from 'next/navigation';
-import Link from 'next/link';
-import { Send, Paperclip, Search, Circle } from 'lucide-react';
-import { useApp } from '@/context/app-context';
-import { Message } from '@/types';
+export default async function DirectMessageDetailPage({
+  params
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const { supabase, user, organizationId } = await requireModuleAccess("messages");
 
-export default function DirectMessageUserPage() {
-  const params = useParams();
-  const userId = (params?.id as string);
-  const { members, currentUser } = useApp();
+  const [{ data: conversation }, { data: messages }, { data: memberships }] = await Promise.all([
+    supabase.from("conversations").select("*").eq("organization_id", organizationId).eq("id", id).maybeSingle(),
+    supabase.from("messages").select("*").eq("organization_id", organizationId).eq("conversation_id", id).order("created_at"),
+    supabase.from("conversation_members").select("user_id").eq("organization_id", organizationId).eq("conversation_id", id)
+  ]);
 
-  const recipientMember = members.find((m) => m.user?.id === userId);
-  const recipient = recipientMember?.user;
+  if (!conversation) notFound();
 
-  // Since we don't have a real direct messages table implemented yet in dataService,
-  // we'll just keep a local state for the UI demo purposes of the page,
-  // but it will reset on reload.
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [inputContent, setInputContent] = useState('');
+  // Verify the current user is actually a member of this conversation
+  const { data: userMembership } = await supabase
+    .from("conversation_members")
+    .select("id")
+    .eq("organization_id", organizationId)
+    .eq("conversation_id", id)
+    .eq("user_id", user.id)
+    .maybeSingle();
 
-  if (!recipient) {
-    return <div className="p-8 text-center text-slate-400">User not found</div>;
-  }
+  if (!userMembership) notFound();
 
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputContent.trim() || !currentUser) return;
+  // Scope profiles to only users in this conversation
+  const memberUserIds = (memberships ?? []).map((m: { user_id: string }) => m.user_id);
+  const { data: profiles } = memberUserIds.length
+    ? await supabase.from("profiles").select("id, full_name").in("id", memberUserIds)
+    : { data: [] };
 
-    const newMsg: Message = {
-      id: `dm-${Date.now()}`,
-      sender_id: currentUser.id,
-      sender: currentUser,
-      content: inputContent,
-      created_at: new Date().toISOString(),
-    };
 
-    setMessages((prev) => [...prev, newMsg]);
-    setInputContent('');
-  };
+  const profileMap = new Map((profiles ?? []).map((profile: { id: string; full_name: string | null }) => [profile.id, profile.full_name || "Teammate"]));
+  const members = (memberships ?? []).map((membership: { user_id: string }) => profileMap.get(membership.user_id) || "Teammate");
+  const messageList = (messages ?? []) as Message[];
 
   return (
-    <div className="h-[calc(100vh-7rem)] bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col md:flex-row">
-      {/* People Sidebar */}
-      <div className="w-full md:w-64 border-r border-slate-800 bg-slate-950/40 p-4 space-y-4 flex flex-col">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Direct Messages</h3>
-
-        <div className="space-y-1 flex-1 overflow-y-auto">
-          {members.filter(m => m.user && m.user.id !== currentUser?.id).map((m) => {
-            const usr = m.user!;
-            const isActive = usr.id === recipient.id;
-            return (
-              <Link
-                key={usr.id}
-                href={`/direct-messages/${usr.id}`}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                  isActive
-                    ? 'bg-brand-500 text-white shadow-md'
-                    : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
-                }`}
-              >
-                <div className="relative">
-                  <img
-                    src={usr.avatar_url || 'https://www.gravatar.com/avatar/?d=mp'}
-                    alt={usr.full_name}
-                    className="w-7 h-7 rounded-full object-cover"
-                  />
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-slate-900 absolute -bottom-0.5 -right-0.5" />
-                </div>
-                <div className="min-w-0 flex-1 text-left">
-                  <div className="truncate font-bold">{usr.full_name}</div>
-                  <div className={`text-[10px] truncate ${isActive ? 'text-white/80' : 'text-slate-500'}`}>
-                    {usr.job_title}
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
+    <div className="page-stack">
+      <section className="project-hero">
+        <div>
+          <p className="eyebrow">Direct message</p>
+          <h1>{conversation.title || members.join(", ") || "Conversation"}</h1>
+          <p>Private coordination for quick decisions, follow-ups, and asynchronous updates.</p>
         </div>
-      </div>
+      </section>
 
-      {/* Main DM Chat Feed */}
-      <div className="flex-1 flex flex-col min-w-0 bg-slate-900/50">
-        {/* DM Header */}
-        <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <img
-                src={recipient.avatar_url || 'https://www.gravatar.com/avatar/?d=mp'}
-                alt={recipient.full_name}
-                className="w-9 h-9 rounded-full object-cover"
-              />
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-slate-900 absolute bottom-0 right-0" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-slate-100">{recipient.full_name}</h3>
-              <p className="text-[11px] text-slate-400">{recipient.job_title} • Online</p>
-            </div>
+      <section className="conversation-layout">
+        <div className="card conversation-card">
+          <div className="message-list">
+            {messageList.filter((message) => !message.parent_message_id).map((message) => (
+              <article className="message-card" key={message.id}>
+                <strong>{profileMap.get(message.sender_user_id) || "Teammate"}</strong>
+                <p>{message.body}</p>
+                <small>{new Date(message.created_at).toLocaleString()}</small>
+
+                {message.sender_user_id === user.id ? (
+                  <form action={editMessage} className="inline-form message-edit-form">
+                    <input type="hidden" name="message_id" value={message.id} />
+                    <input type="hidden" name="conversation_id" value={conversation.id} />
+                    <input name="body" defaultValue={message.body} aria-label="Edit message" />
+                    <button className="button small" type="submit">
+                      Save
+                    </button>
+                  </form>
+                ) : null}
+
+                <div className="thread-list">
+                  {messageList
+                    .filter((reply) => reply.parent_message_id === message.id)
+                    .map((reply) => (
+                      <div className="thread-item" key={reply.id}>
+                        <strong>{profileMap.get(reply.sender_user_id) || "Teammate"}</strong>
+                        <p className="muted">{reply.body}</p>
+                      </div>
+                    ))}
+                </div>
+
+                <form action={postThreadReply} className="inline-form">
+                  <input type="hidden" name="parent_message_id" value={message.id} />
+                  <input type="hidden" name="conversation_id" value={conversation.id} />
+                  <input name="body" placeholder="Reply in thread..." />
+                  <button className="button small" type="submit">
+                    Reply
+                  </button>
+                </form>
+
+                {message.sender_user_id === user.id ? (
+                  <form action={deleteMessage}>
+                    <input type="hidden" name="message_id" value={message.id} />
+                    <input type="hidden" name="conversation_id" value={conversation.id} />
+                    <button className="button danger small" type="submit">
+                      Delete
+                    </button>
+                  </form>
+                ) : null}
+              </article>
+            ))}
           </div>
         </div>
 
-        {/* Message Feed */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.map((msg) => (
-            <div key={msg.id} className="flex items-start gap-3">
-              <img
-                src={msg.sender?.avatar_url || 'https://www.gravatar.com/avatar/?d=mp'}
-                alt={msg.sender?.full_name}
-                className="w-8 h-8 rounded-full object-cover shrink-0 mt-0.5"
-              />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-xs font-bold text-slate-200">{msg.sender?.full_name}</span>
-                  <span className="text-[10px] text-slate-500">
-                    {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                </div>
-                <div className="mt-1 p-3 rounded-2xl bg-slate-800/80 border border-slate-700/60 text-xs text-slate-200 inline-block max-w-xl">
-                  {msg.content}
-                </div>
-              </div>
-            </div>
-          ))}
-          {messages.length === 0 && (
-            <div className="text-center text-slate-500 text-sm mt-10">
-              No messages yet. Send a message to start the conversation!
-            </div>
-          )}
-        </div>
-
-        {/* Input Bar */}
-        <div className="p-3 border-t border-slate-800 bg-slate-900">
-          <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-            <button
-              type="button"
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-            >
-              <Paperclip className="w-4 h-4" />
-            </button>
-            <input
-              type="text"
-              value={inputContent}
-              onChange={(e) => setInputContent(e.target.value)}
-              placeholder={`Message ${recipient.full_name}...`}
-              className="flex-1 px-4 py-2.5 rounded-xl bg-slate-800/90 border border-slate-700/80 text-slate-100 placeholder-slate-500 text-xs focus:outline-none focus:border-brand-500"
-            />
-            <button
-              type="submit"
-              className="p-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white shadow-md shadow-brand-500/20 transition-all"
-            >
-              <Send className="w-4 h-4" />
-            </button>
-          </form>
-        </div>
-      </div>
+        <form action={postDirectMessage} className="card form-card">
+          <h2>Message</h2>
+          <input type="hidden" name="conversation_id" value={conversation.id} />
+          <textarea name="body" rows={5} placeholder="Write your message..." required />
+          <button className="button primary" type="submit">
+            Send
+          </button>
+        </form>
+      </section>
     </div>
   );
 }

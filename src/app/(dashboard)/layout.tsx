@@ -1,50 +1,36 @@
-'use client';
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { DashboardBreadcrumbs } from "@/components/dashboard-breadcrumbs";
+import { Sidebar } from "@/components/sidebar";
+import { MobileBottomNav } from "@/components/mobile-bottom-nav";
+import { getCurrentOrg } from "@/lib/current-org";
 
-import { useState } from 'react';
-import { Sidebar } from '@/components/layout/Sidebar';
-import { Navbar } from '@/components/layout/Navbar';
-import { MobileBottomNav } from '@/components/layout/mobile-bottom-nav';
-import { QuickSearchModal } from '@/components/layout/QuickSearchModal';
-import { ProjectForm } from '@/components/ui/project-form';
+export default async function DashboardLayout({
+  children
+}: {
+  children: React.ReactNode;
+}) {
+  const supabase = await createClient();
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  if (!user) {
+    redirect("/login");
+  }
+
+  await getCurrentOrg();
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex">
-      {/* Desktop Sidebar */}
-      <div className="hidden md:block">
-        <Sidebar
-          collapsed={sidebarCollapsed}
-          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-        />
-      </div>
-
-      {/* Main Content Area */}
-      <div
-        className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${
-          sidebarCollapsed ? 'md:pl-20' : 'md:pl-64'
-        }`}
-      >
-        <Navbar
-          onOpenSearch={() => setIsSearchOpen(true)}
-          onOpenCreateProjectModal={() => setIsCreateProjectOpen(true)}
-          onToggleMobileNav={() => setMobileNavOpen(!mobileNavOpen)}
-        />
-
-        <main className="flex-1 p-4 md:p-6 pb-20 md:pb-6 overflow-x-hidden">
+    <div className="app-shell">
+      <Sidebar />
+      <div className="main-shell">
+        <main className="content-shell">
+          <DashboardBreadcrumbs />
           {children}
         </main>
-
-        <MobileBottomNav />
       </div>
-
-      {/* Global Modals */}
-      <QuickSearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
-      <ProjectForm isOpen={isCreateProjectOpen} onClose={() => setIsCreateProjectOpen(false)} />
+      <MobileBottomNav />
     </div>
   );
 }
