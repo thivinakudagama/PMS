@@ -45,6 +45,7 @@ export const taskSchema = z.object({
 export const inviteMemberSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
   role: z.enum(['Admin', 'Project Manager', 'Member', 'Viewer']),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
 export const channelSchema = z.object({

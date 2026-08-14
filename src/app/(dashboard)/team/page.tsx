@@ -11,6 +11,7 @@ export default function TeamPage() {
   const { members, addMember, updateMemberRole, removeMember, currentUserRole } = useApp();
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [role, setRole] = useState<OrgRole>('Member');
   const [error, setError] = useState<string | null>(null);
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
@@ -28,16 +29,17 @@ export default function TeamPage() {
     e.preventDefault();
     setError(null);
 
-    const validation = inviteMemberSchema.safeParse({ email, role });
+    const validation = inviteMemberSchema.safeParse({ email, role, password });
     if (!validation.success) {
       setError(validation.error.errors[0].message);
       return;
     }
 
     try {
-      await addMember(email, role);
+      await addMember(email, role, password);
       setShowInviteModal(false);
       setEmail('');
+      setPassword('');
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred while inviting the member.');
     }
@@ -172,6 +174,20 @@ export default function TeamPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="colleague@company.com"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs focus:outline-none"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
+                  Temporary Password *
+                </label>
+                <input
+                  type="text"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="minimum 6 characters"
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs focus:outline-none"
                   required
                 />

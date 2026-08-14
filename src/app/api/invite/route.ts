@@ -4,7 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function POST(request: Request) {
   try {
-    const { email, role, orgId } = await request.json();
+    const { email, role, orgId, password } = await request.json();
 
     if (!email || !role || !orgId) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -44,12 +44,25 @@ export async function POST(request: Request) {
     if (existingProfile) {
       targetUserId = existingProfile.id;
     } else {
-      // 4. User does not exist, send an email invitation using the Admin API
-      // Construct the absolute URL for the redirect
-      const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-      const { data: inviteData, error: inviteError } = await adminAuthClient.auth.admin.inviteUserByEmail(email, {
-        redirectTo: `${origin}/update-password`
-      });
+      // 4. User does not exist, create them immediately if a password is provided, otherwise fallback to invite
+      let inviteData, inviteError;
+
+      if (password) {
+        const { data, error } = await adminAuthClient.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true,
+        });
+        inviteData = data;
+        inviteError = error;
+      } else {
+        const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+        const { data, error } = await adminAuthClient.auth.admin.inviteUserByEmail(email, {
+          redirectTo: `${origin}/update-password`
+        });
+        inviteData = data;
+        inviteError = error;
+      }
       
       if (inviteError) {
         // If the user already registered in auth.users but no profile exists for some reason, catch it

@@ -41,7 +41,7 @@ interface AppContextType {
   createTask: (task: Partial<Task> & { title: string; project_id: string }) => Promise<Task | null>;
   updateTask: (id: string, updates: Partial<Task>) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
-  addMember: (email: string, role: 'Admin' | 'Project Manager' | 'Member' | 'Viewer') => Promise<void>;
+  addMember: (email: string, role: 'Admin' | 'Project Manager' | 'Member' | 'Viewer', password?: string) => Promise<void>;
   updateMemberRole: (memberId: string, role: 'Admin' | 'Project Manager' | 'Member' | 'Viewer') => Promise<void>;
   removeMember: (memberId: string) => Promise<void>;
   addFile: (file: Partial<FileItem> & { name: string }) => Promise<void>;
@@ -233,10 +233,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const addMember = async (email: string, role: 'Admin' | 'Project Manager' | 'Member' | 'Viewer') => {
+  const addMember = async (email: string, role: 'Admin' | 'Project Manager' | 'Member' | 'Viewer', password?: string) => {
     if (!currentOrg) return;
     try {
-      const newMember = await dataService.inviteMember(currentOrg.id, email, role);
+      const newMember = await dataService.inviteMember(currentOrg.id, email, role, password);
       if (newMember) {
         setMembers((prev) => [newMember, ...prev]);
         await dataService.logActivity(currentOrg.id, `invited ${email} as ${role}`, 'member', newMember.id);

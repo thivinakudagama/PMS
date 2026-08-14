@@ -169,12 +169,12 @@ export const dataService = {
     return null;
   },
 
-  async inviteMember(orgId: string, email: string, role: 'Admin' | 'Project Manager' | 'Member' | 'Viewer'): Promise<OrganizationMember | null> {
+  async inviteMember(orgId: string, email: string, role: 'Admin' | 'Project Manager' | 'Member' | 'Viewer', password?: string): Promise<OrganizationMember | null> {
     try {
       const response = await fetch('/api/invite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orgId, email, role }),
+        body: JSON.stringify({ orgId, email, role, password }),
       });
       
       const data = await response.json();
