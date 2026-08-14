@@ -15,7 +15,7 @@ create table if not exists public.profiles (
 create table if not exists public.organizations (
   id uuid primary key default gen_random_uuid(),
   name text not null,
-  owner_id uuid not null references auth.users(id) on delete cascade,
+  owner_id uuid not null references public.profiles(id) on delete cascade,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -35,7 +35,7 @@ create table if not exists public.roles (
 create table if not exists public.organization_members (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
   email text,
   role_id uuid references public.roles(id) on delete set null,
   is_admin boolean not null default false,
@@ -51,7 +51,7 @@ create table if not exists public.staff_invitations (
   email text not null,
   role_id uuid references public.roles(id) on delete set null,
   permissions_override jsonb,
-  invited_by uuid references auth.users(id) on delete set null,
+  invited_by uuid references public.profiles(id) on delete set null,
   accepted_at timestamptz,
   created_at timestamptz not null default now()
 );
@@ -59,7 +59,7 @@ create table if not exists public.staff_invitations (
 create table if not exists public.projects (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  owner_id uuid not null references auth.users(id) on delete cascade,
+  owner_id uuid not null references public.profiles(id) on delete cascade,
   name text not null,
   description text,
   status text not null default 'Not Started'
@@ -76,9 +76,9 @@ create table if not exists public.projects (
 create table if not exists public.tasks (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  owner_id uuid not null references auth.users(id) on delete cascade,
+  owner_id uuid not null references public.profiles(id) on delete cascade,
   project_id uuid not null references public.projects(id) on delete cascade,
-  assignee_user_id uuid references auth.users(id) on delete set null,
+  assignee_user_id uuid references public.profiles(id) on delete set null,
   title text not null,
   description text,
   status text not null default 'To Do'
@@ -94,9 +94,9 @@ create table if not exists public.tasks (
 create table if not exists public.project_members (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  owner_id uuid not null references auth.users(id) on delete cascade,
+  owner_id uuid not null references public.profiles(id) on delete cascade,
   project_id uuid not null references public.projects(id) on delete cascade,
-  user_id uuid references auth.users(id) on delete set null,
+  user_id uuid references public.profiles(id) on delete set null,
   name text not null,
   email text,
   role text,
@@ -116,7 +116,7 @@ create table if not exists public.channels (
   purpose text,
   is_private boolean not null default false,
   is_default boolean not null default false,
-  created_by uuid not null references auth.users(id) on delete cascade,
+  created_by uuid not null references public.profiles(id) on delete cascade,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (organization_id, slug)
@@ -126,7 +126,7 @@ create table if not exists public.channel_members (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
   channel_id uuid not null references public.channels(id) on delete cascade,
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
   created_at timestamptz not null default now(),
   last_read_at timestamptz,
   unique (channel_id, user_id)
@@ -137,7 +137,7 @@ create table if not exists public.conversations (
   organization_id uuid not null references public.organizations(id) on delete cascade,
   type text not null default 'direct' check (type in ('direct', 'group')),
   title text,
-  created_by uuid not null references auth.users(id) on delete cascade,
+  created_by uuid not null references public.profiles(id) on delete cascade,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -146,7 +146,7 @@ create table if not exists public.conversation_members (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
   conversation_id uuid not null references public.conversations(id) on delete cascade,
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
   created_at timestamptz not null default now(),
   last_read_at timestamptz,
   unique (conversation_id, user_id)
@@ -158,7 +158,7 @@ create table if not exists public.messages (
   channel_id uuid references public.channels(id) on delete cascade,
   conversation_id uuid references public.conversations(id) on delete cascade,
   parent_message_id uuid references public.messages(id) on delete cascade,
-  sender_user_id uuid not null references auth.users(id) on delete cascade,
+  sender_user_id uuid not null references public.profiles(id) on delete cascade,
   body text not null,
   mentions text[] default '{}',
   is_pinned boolean not null default false,
@@ -174,7 +174,7 @@ create table if not exists public.message_reactions (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
   message_id uuid not null references public.messages(id) on delete cascade,
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
   emoji text not null,
   created_at timestamptz not null default now(),
   unique (message_id, user_id, emoji)
@@ -186,7 +186,7 @@ create table if not exists public.project_docs (
   project_id uuid not null references public.projects(id) on delete cascade,
   title text not null default 'Project overview',
   content_json jsonb not null default '{"text": ""}'::jsonb,
-  created_by uuid not null references auth.users(id) on delete cascade,
+  created_by uuid not null references public.profiles(id) on delete cascade,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (project_id, title)
@@ -196,7 +196,7 @@ create table if not exists public.task_comments (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
   task_id uuid not null references public.tasks(id) on delete cascade,
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
   body text not null,
   created_at timestamptz not null default now()
 );
@@ -205,7 +205,7 @@ create table if not exists public.task_watchers (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
   task_id uuid not null references public.tasks(id) on delete cascade,
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
   created_at timestamptz not null default now(),
   unique (task_id, user_id)
 );
@@ -226,7 +226,7 @@ create table if not exists public.files (
   task_id uuid references public.tasks(id) on delete cascade,
   channel_id uuid references public.channels(id) on delete cascade,
   message_id uuid references public.messages(id) on delete set null,
-  uploaded_by uuid not null references auth.users(id) on delete cascade,
+  uploaded_by uuid not null references public.profiles(id) on delete cascade,
   bucket_name text,
   storage_path text,
   storage_provider text not null default 'supabase' check (storage_provider in ('supabase', 'google_drive')),
@@ -254,7 +254,7 @@ create table if not exists public.file_links (
 create table if not exists public.notifications (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
   type text not null
     check (type in ('mention', 'assignment', 'reply', 'due_soon', 'automation', 'project_update', 'task_update')),
   title text not null,
@@ -267,7 +267,7 @@ create table if not exists public.notifications (
 create table if not exists public.activity_events (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  actor_user_id uuid references auth.users(id) on delete set null,
+  actor_user_id uuid references public.profiles(id) on delete set null,
   project_id uuid references public.projects(id) on delete cascade,
   task_id uuid references public.tasks(id) on delete cascade,
   channel_id uuid references public.channels(id) on delete cascade,
@@ -287,7 +287,7 @@ create table if not exists public.automations (
   action_type text not null,
   is_enabled boolean not null default true,
   config jsonb not null default '{}'::jsonb,
-  created_by uuid not null references auth.users(id) on delete cascade,
+  created_by uuid not null references public.profiles(id) on delete cascade,
   created_at timestamptz not null default now()
 );
 
@@ -298,7 +298,7 @@ create table if not exists public.project_templates (
   category text not null,
   description text,
   template_data jsonb not null default '{}'::jsonb,
-  created_by uuid references auth.users(id) on delete set null,
+  created_by uuid references public.profiles(id) on delete set null,
   created_at timestamptz not null default now(),
   unique (organization_id, name)
 );
