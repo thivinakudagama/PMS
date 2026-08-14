@@ -311,8 +311,8 @@ export const dataService = {
 
   async updateProfile(userId: string, orgId: string, updates: Partial<UserProfile>): Promise<UserProfile | null> {
     const supabase = createClient();
-    const { data, error } = await supabase
-      .from('profiles')
+    const { data, error } = await (supabase
+      .from('profiles') as any)
       .update(updates)
       .eq('id', userId)
       .select()
