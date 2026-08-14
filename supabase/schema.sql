@@ -900,13 +900,8 @@ for insert
 to authenticated
 with check (public.has_org_permission(organization_id, 'channels', 'create'));
 
-drop policy if exists "Channel members editable by self" on public.channel_members;
-create policy "Channel members editable by self"
-on public.channel_members
-for update
-to authenticated
-using (user_id = auth.uid())
-with check (user_id = auth.uid());
+
+
 
 drop policy if exists "Conversations visible to members" on public.conversations;
 create policy "Conversations visible to members"
@@ -948,13 +943,8 @@ for insert
 to authenticated
 with check (public.has_org_permission(organization_id, 'messages', 'create'));
 
-drop policy if exists "Conversation members editable by self" on public.conversation_members;
-create policy "Conversation members editable by self"
-on public.conversation_members
-for update
-to authenticated
-using (user_id = auth.uid())
-with check (user_id = auth.uid());
+
+
 
 drop policy if exists "Messages visible to permitted members" on public.messages;
 create policy "Messages visible to permitted members"
@@ -1015,25 +1005,8 @@ with check (
   )
 );
 
-drop policy if exists "Messages editable by author" on public.messages;
-create policy "Messages editable by author"
-on public.messages
-for update
-to authenticated
-using (
-  sender_user_id = auth.uid()
-  and (
-    public.has_org_permission(organization_id, 'messages', 'create')
-    or public.has_org_permission(organization_id, 'messages', 'edit')
-  )
-)
-with check (
-  sender_user_id = auth.uid()
-  and (
-    public.has_org_permission(organization_id, 'messages', 'create')
-    or public.has_org_permission(organization_id, 'messages', 'edit')
-  )
-);
+
+
 
 drop policy if exists "Messages deletable by author or admin" on public.messages;
 create policy "Messages deletable by author or admin"
@@ -1065,12 +1038,8 @@ for insert
 to authenticated
 with check (user_id = auth.uid() and public.has_org_permission(organization_id, 'messages', 'create'));
 
-drop policy if exists "Message reactions deletable by self" on public.message_reactions;
-create policy "Message reactions deletable by self"
-on public.message_reactions
-for delete
-to authenticated
-using (user_id = auth.uid());
+
+
 
 drop policy if exists "Project docs visible to project viewers" on public.project_docs;
 create policy "Project docs visible to project viewers"
@@ -1248,3 +1217,181 @@ on public.project_templates
 for insert
 to authenticated
 with check (public.has_org_permission(organization_id, 'projects', 'create'));
+\n
+-- NEW ADMIN / DELEGATED POLICIES ADDED FOR SYSTEM-WIDE EDIT/DELETE
+
+-- Channels: add delete
+drop policy if exists "Channels deletable by channel deleters" on public.channels;
+create policy "Channels deletable by channel deleters"
+on public.channels
+for delete
+to authenticated
+using (public.has_org_permission(organization_id, 'channels', 'delete'));
+
+-- Channel Members: update & delete
+drop policy if exists "Channel members editable by self or admin" on public.channel_members;
+create policy "Channel members editable by self or admin"
+on public.channel_members
+for update
+to authenticated
+using (user_id = auth.uid() or public.has_org_permission(organization_id, 'channels', 'edit'))
+with check (user_id = auth.uid() or public.has_org_permission(organization_id, 'channels', 'edit'));
+
+drop policy if exists "Channel members deletable by self or admin" on public.channel_members;
+create policy "Channel members deletable by self or admin"
+on public.channel_members
+for delete
+to authenticated
+using (user_id = auth.uid() or public.has_org_permission(organization_id, 'channels', 'delete'));
+
+-- Conversations: update & delete
+drop policy if exists "Conversations editable by message editors" on public.conversations;
+create policy "Conversations editable by message editors"
+on public.conversations
+for update
+to authenticated
+using (public.has_org_permission(organization_id, 'messages', 'edit'))
+with check (public.has_org_permission(organization_id, 'messages', 'edit'));
+
+drop policy if exists "Conversations deletable by message deleters" on public.conversations;
+create policy "Conversations deletable by message deleters"
+on public.conversations
+for delete
+to authenticated
+using (public.has_org_permission(organization_id, 'messages', 'delete'));
+
+-- Conversation Members: update & delete
+drop policy if exists "Conversation members editable by self or admin" on public.conversation_members;
+create policy "Conversation members editable by self or admin"
+on public.conversation_members
+for update
+to authenticated
+using (user_id = auth.uid() or public.has_org_permission(organization_id, 'messages', 'edit'))
+with check (user_id = auth.uid() or public.has_org_permission(organization_id, 'messages', 'edit'));
+
+drop policy if exists "Conversation members deletable by self or admin" on public.conversation_members;
+create policy "Conversation members deletable by self or admin"
+on public.conversation_members
+for delete
+to authenticated
+using (user_id = auth.uid() or public.has_org_permission(organization_id, 'messages', 'delete'));
+
+-- Messages: update (already has delete for admins)
+drop policy if exists "Messages editable by author or admin" on public.messages;
+create policy "Messages editable by author or admin"
+on public.messages
+for update
+to authenticated
+using (
+  (sender_user_id = auth.uid() and (public.has_org_permission(organization_id, 'messages', 'create') or public.has_org_permission(organization_id, 'messages', 'edit')))
+  or public.has_org_permission(organization_id, 'messages', 'edit')
+)
+with check (
+  (sender_user_id = auth.uid() and (public.has_org_permission(organization_id, 'messages', 'create') or public.has_org_permission(organization_id, 'messages', 'edit')))
+  or public.has_org_permission(organization_id, 'messages', 'edit')
+);
+
+-- Message Reactions: delete
+drop policy if exists "Message reactions deletable by self or admin" on public.message_reactions;
+create policy "Message reactions deletable by self or admin"
+on public.message_reactions
+for delete
+to authenticated
+using (user_id = auth.uid() or public.has_org_permission(organization_id, 'messages', 'delete'));
+
+-- Project Docs: delete
+drop policy if exists "Project docs deletable by doc deleters" on public.project_docs;
+create policy "Project docs deletable by doc deleters"
+on public.project_docs
+for delete
+to authenticated
+using (public.has_org_permission(organization_id, 'docs', 'delete'));
+
+-- Task Comments: update & delete
+drop policy if exists "Task comments editable by author or admin" on public.task_comments;
+create policy "Task comments editable by author or admin"
+on public.task_comments
+for update
+to authenticated
+using (user_id = auth.uid() or public.has_org_permission(organization_id, 'tasks', 'edit'))
+with check (user_id = auth.uid() or public.has_org_permission(organization_id, 'tasks', 'edit'));
+
+drop policy if exists "Task comments deletable by author or admin" on public.task_comments;
+create policy "Task comments deletable by author or admin"
+on public.task_comments
+for delete
+to authenticated
+using (user_id = auth.uid() or public.has_org_permission(organization_id, 'tasks', 'delete'));
+
+-- Task Watchers: delete
+drop policy if exists "Task watchers deletable by self or admin" on public.task_watchers;
+create policy "Task watchers deletable by self or admin"
+on public.task_watchers
+for delete
+to authenticated
+using (user_id = auth.uid() or public.has_org_permission(organization_id, 'tasks', 'delete'));
+
+-- Task Labels: update & delete
+drop policy if exists "Task labels editable by task editors" on public.task_labels;
+create policy "Task labels editable by task editors"
+on public.task_labels
+for update
+to authenticated
+using (public.has_org_permission(organization_id, 'tasks', 'edit'))
+with check (public.has_org_permission(organization_id, 'tasks', 'edit'));
+
+drop policy if exists "Task labels deletable by task editors" on public.task_labels;
+create policy "Task labels deletable by task editors"
+on public.task_labels
+for delete
+to authenticated
+using (public.has_org_permission(organization_id, 'tasks', 'delete'));
+
+-- Files: update
+drop policy if exists "Files editable by file editors" on public.files;
+create policy "Files editable by file editors"
+on public.files
+for update
+to authenticated
+using (public.has_org_permission(organization_id, 'files', 'edit'))
+with check (public.has_org_permission(organization_id, 'files', 'edit'));
+
+-- File Links: update & delete
+drop policy if exists "File links editable by file editors" on public.file_links;
+create policy "File links editable by file editors"
+on public.file_links
+for update
+to authenticated
+using (public.has_org_permission(organization_id, 'files', 'edit'))
+with check (public.has_org_permission(organization_id, 'files', 'edit'));
+
+drop policy if exists "File links deletable by file deleters" on public.file_links;
+create policy "File links deletable by file deleters"
+on public.file_links
+for delete
+to authenticated
+using (public.has_org_permission(organization_id, 'files', 'delete'));
+
+-- Automations: delete
+drop policy if exists "Automations deletable by automation editors" on public.automations;
+create policy "Automations deletable by automation editors"
+on public.automations
+for delete
+to authenticated
+using (public.has_org_permission(organization_id, 'automation', 'delete'));
+
+-- Project Templates: update & delete
+drop policy if exists "Project templates editable by project editors" on public.project_templates;
+create policy "Project templates editable by project editors"
+on public.project_templates
+for update
+to authenticated
+using (public.has_org_permission(organization_id, 'projects', 'edit'))
+with check (public.has_org_permission(organization_id, 'projects', 'edit'));
+
+drop policy if exists "Project templates deletable by project deleters" on public.project_templates;
+create policy "Project templates deletable by project deleters"
+on public.project_templates
+for delete
+to authenticated
+using (public.has_org_permission(organization_id, 'projects', 'delete'));
