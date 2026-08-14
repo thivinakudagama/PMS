@@ -1213,6 +1213,16 @@ export async function uploadWorkspaceFile(formData: FormData) {
     throw new Error("Choose a file to upload.");
   }
 
+  // Check if Google Drive is configured before attempting upload
+  const hasDriveConfig =
+    process.env.GOOGLE_DRIVE_CLIENT_EMAIL &&
+    process.env.GOOGLE_DRIVE_PRIVATE_KEY &&
+    process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID;
+
+  if (!hasDriveConfig) {
+    redirect("/files?error=" + encodeURIComponent("File uploads require Google Drive configuration. Please contact your administrator to set up GOOGLE_DRIVE_CLIENT_EMAIL, GOOGLE_DRIVE_PRIVATE_KEY, and GOOGLE_DRIVE_ROOT_FOLDER_ID."));
+  }
+
   const projectId = nullable(getString(formData, "project_id"));
   const taskId = nullable(getString(formData, "task_id"));
   const channelId = nullable(getString(formData, "channel_id"));
@@ -1222,12 +1232,20 @@ export async function uploadWorkspaceFile(formData: FormData) {
   const { data: project } = projectId
     ? await supabase.from("projects").select("name").eq("id", projectId).maybeSingle()
     : { data: null };
-  const folders = await ensureProjectDriveFolders(organizationName, project?.name ?? null, scope);
-  const driveFile = await uploadFileToDrive({
-    file: rawFile,
-    folderId: folders.scopeFolder.id,
-    fileName: rawFile.name
-  });
+
+  let driveFile: Awaited<ReturnType<typeof uploadFileToDrive>>;
+  let folders: Awaited<ReturnType<typeof ensureProjectDriveFolders>>;
+  try {
+    folders = await ensureProjectDriveFolders(organizationName, project?.name ?? null, scope);
+    driveFile = await uploadFileToDrive({
+      file: rawFile,
+      folderId: folders.scopeFolder.id,
+      fileName: rawFile.name
+    });
+  } catch (driveErr: unknown) {
+    const message = driveErr instanceof Error ? driveErr.message : "Unable to upload to Google Drive.";
+    redirect("/files?error=" + encodeURIComponent(message));
+  }
 
   const { error } = await supabase.from("files").insert({
     organization_id: organizationId,
@@ -1239,10 +1257,10 @@ export async function uploadWorkspaceFile(formData: FormData) {
     bucket_name: null,
     storage_path: null,
     storage_provider: "google_drive",
-    drive_file_id: driveFile.id,
-    drive_folder_id: folders.scopeFolder.id,
-    drive_web_view_link: driveFile.webViewLink ?? null,
-    drive_download_link: driveFile.webContentLink ?? null,
+    drive_file_id: driveFile!.id,
+    drive_folder_id: folders!.scopeFolder.id,
+    drive_web_view_link: driveFile!.webViewLink ?? null,
+    drive_download_link: driveFile!.webContentLink ?? null,
     file_name: rawFile.name,
     content_type: rawFile.type || null,
     size_bytes: rawFile.size,

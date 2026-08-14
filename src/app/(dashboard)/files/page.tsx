@@ -5,8 +5,21 @@ import { requireModuleAccess } from "@/lib/current-org";
 
 import { can } from "@/lib/rbac";
 
-export default async function FilesPage() {
+type FilesPageProps = {
+  searchParams: Promise<{
+    error?: string;
+    message?: string;
+  }>;
+};
+
+export default async function FilesPage({ searchParams }: FilesPageProps) {
+  const params = await searchParams;
   const { supabase, membership, organizationId, user } = await requireModuleAccess("files");
+
+  const hasDriveConfig =
+    process.env.GOOGLE_DRIVE_CLIENT_EMAIL &&
+    process.env.GOOGLE_DRIVE_PRIVATE_KEY &&
+    process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID;
 
   const canViewGlobalFiles = can(membership, "files", "view_global");
   let filesQuery = supabase.from("files").select("*").eq("organization_id", organizationId).order("created_at", { ascending: false });
@@ -48,12 +61,23 @@ export default async function FilesPage() {
         </div>
       </section>
 
+      {params.error ? <div className="alert error">{params.error}</div> : null}
+      {params.message ? <div className="alert success">{params.message}</div> : null}
+
       <section className="split-layout">
         <form action={uploadWorkspaceFile} className="card form-card">
           <div>
             <h2>Upload file</h2>
             <p className="muted">Files are saved to Google Drive and linked back to the workspace.</p>
           </div>
+
+          {!hasDriveConfig ? (
+            <div className="alert error" style={{ margin: 0 }}>
+              Google Drive is not configured. File uploads are disabled. Set{" "}
+              <code>GOOGLE_DRIVE_CLIENT_EMAIL</code>, <code>GOOGLE_DRIVE_PRIVATE_KEY</code>, and{" "}
+              <code>GOOGLE_DRIVE_ROOT_FOLDER_ID</code> in your environment variables to enable uploads.
+            </div>
+          ) : null}
 
           <label>
             Link to project
@@ -68,10 +92,10 @@ export default async function FilesPage() {
           </label>
           <label>
             Select file
-            <input name="file" type="file" required />
+            <input name="file" type="file" required disabled={!hasDriveConfig} />
           </label>
 
-          <button className="button primary" type="submit">
+          <button className="button primary" type="submit" disabled={!hasDriveConfig}>
             Upload
           </button>
         </form>
