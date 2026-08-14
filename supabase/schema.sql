@@ -909,7 +909,8 @@ on public.conversations
 for select
 to authenticated
 using (
-  exists (
+  created_by = auth.uid()
+  or exists (
     select 1
     from public.conversation_members cm
     where cm.conversation_id = conversations.id
