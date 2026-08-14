@@ -285,7 +285,7 @@ export function SidebarClient({ collapsed, onToggleCollapse }: SidebarClientProp
               </h5>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
-                  Admin
+                  {useApp().currentUserRole || 'Member'}
                 </span>
               </div>
             </div>
