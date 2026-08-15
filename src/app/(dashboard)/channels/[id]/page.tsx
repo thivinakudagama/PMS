@@ -34,127 +34,131 @@ export default async function ChannelDetailPage({
   const messageMap = new Map((profiles ?? []).map((profile: { id: string; full_name: string | null }) => [profile.id, profile.full_name || "Teammate"]));
   const topLevelMessages = messageList.filter((message) => !message.parent_message_id);
 
+
   return (
-    <div className="page-stack">
-      <section className="project-hero">
+    <div className="chat-viewport">
+      <header className="chat-viewport-header">
         <div>
-          <p className="eyebrow">Channel</p>
           <h1>#{channel.slug}</h1>
           <p>{channel.description || "A focused place for project conversation, coordination, and updates."}</p>
-          <div className="badge-row">
-            <span className="badge">{channel.type}</span>
-            <span className="badge">{channel.is_private ? "Private" : "Open to workspace"}</span>
-            <span className="badge">{(members ?? []).length} members</span>
-          </div>
         </div>
-      </section>
+        <div className="badge-row">
+          <span className="badge">{channel.type}</span>
+          <span className="badge">{channel.is_private ? "Private" : "Open to workspace"}</span>
+          <span className="badge">{(members ?? []).length} members</span>
+        </div>
+      </header>
 
-      <section className="conversation-layout">
-        <div className="card conversation-card">
-          <div className="message-list">
-            {topLevelMessages.map((message) => {
-              const threadReplies = messageList.filter((reply) => reply.parent_message_id === message.id);
-              const groupedReactions = (reactions ?? []).filter((reaction: any) => reaction.message_id === message.id);
+      <div className="chat-scroll-area">
+        <div className="message-list">
+          {topLevelMessages.map((message) => {
+            const threadReplies = messageList.filter((reply) => reply.parent_message_id === message.id);
+            const groupedReactions = (reactions ?? []).filter((reaction: any) => reaction.message_id === message.id);
 
-              return (
-                <article className="chat-message-row" id={`message-${message.id}`} key={message.id}>
-                  <div className="chat-avatar">
-                    {(messageMap.get(message.sender_user_id) || "T")[0].toUpperCase()}
+            return (
+              <article className="chat-message-row" id={`message-${message.id}`} key={message.id}>
+                <div className="chat-avatar large" style={{ width: '42px', height: '42px', fontSize: '1.2rem', borderRadius: '8px' }}>
+                  {(messageMap.get(message.sender_user_id) || "T")[0].toUpperCase()}
+                </div>
+                
+                <div className="chat-content">
+                  <div className="chat-meta">
+                    <strong style={{ fontSize: '15px' }}>{messageMap.get(message.sender_user_id) || "Teammate"}</strong>
+                    <small>{new Date(message.created_at).toLocaleString([], { hour: '2-digit', minute: '2-digit' })}</small>
                   </div>
                   
-                  <div className="chat-content">
-                    <div className="chat-meta">
-                      <strong>{messageMap.get(message.sender_user_id) || "Teammate"}</strong>
-                      <small>{new Date(message.created_at).toLocaleString([], { hour: '2-digit', minute: '2-digit' })}</small>
-                    </div>
-                    
-                    <div className="chat-bubble">
-                      <p>{message.body}</p>
-                    </div>
+                  <div className="chat-bubble">
+                    <p style={{ margin: 0, fontSize: '15px' }}>{message.body}</p>
+                  </div>
 
-                    <div className="chat-actions">
-                      {["👍", "🔥", "✅"].map((emoji) => (
-                        <form action={toggleMessageReaction} key={emoji}>
-                          <input type="hidden" name="message_id" value={message.id} />
-                          <input type="hidden" name="channel_id" value={channel.id} />
-                          <input type="hidden" name="emoji" value={emoji} />
-                          <button className="button small ghost" type="submit" style={{ padding: "0.2rem 0.5rem" }}>
-                            {emoji} {groupedReactions.filter((reaction: any) => reaction.emoji === emoji).length || ""}
-                          </button>
-                        </form>
-                      ))}
-
-                      {message.sender_user_id === user.id ? (
-                        <form action={deleteMessage}>
-                          <input type="hidden" name="message_id" value={message.id} />
-                          <input type="hidden" name="channel_id" value={channel.id} />
-                          <button className="button danger small ghost" type="submit" style={{ padding: "0.2rem 0.5rem" }}>
-                            Delete
-                          </button>
-                        </form>
-                      ) : null}
-                    </div>
-
-                    {message.sender_user_id === user.id ? (
-                      <form action={editMessage} className="inline-form message-edit-form" style={{ marginTop: "8px" }}>
+                  <div className="message-hover-actions">
+                    {["👍", "✅"].map((emoji) => (
+                      <form action={toggleMessageReaction} key={emoji}>
                         <input type="hidden" name="message_id" value={message.id} />
                         <input type="hidden" name="channel_id" value={channel.id} />
-                        <input name="body" defaultValue={message.body} aria-label="Edit message" />
+                        <input type="hidden" name="emoji" value={emoji} />
                         <button className="button small ghost" type="submit">
-                          Save
+                          {emoji} {groupedReactions.filter((reaction: any) => reaction.emoji === emoji).length || ""}
+                        </button>
+                      </form>
+                    ))}
+
+                    {message.sender_user_id === user.id ? (
+                      <form action={deleteMessage}>
+                        <input type="hidden" name="message_id" value={message.id} />
+                        <input type="hidden" name="channel_id" value={channel.id} />
+                        <button className="button danger small ghost" type="submit">
+                          Delete
                         </button>
                       </form>
                     ) : null}
+                  </div>
 
-                    {threadReplies.length > 0 && (
-                      <div className="chat-bubble-threads">
-                        {threadReplies.map((reply) => (
-                          <div className="chat-thread-item" key={reply.id}>
-                            <strong>{messageMap.get(reply.sender_user_id) || "Teammate"}</strong>
-                            <p>{reply.body}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    <form action={postThreadReply} className="inline-form" style={{ marginTop: "8px" }}>
-                      <input type="hidden" name="parent_message_id" value={message.id} />
+                  {message.sender_user_id === user.id ? (
+                    <form action={editMessage} className="inline-form message-edit-form" style={{ marginTop: "8px" }}>
+                      <input type="hidden" name="message_id" value={message.id} />
                       <input type="hidden" name="channel_id" value={channel.id} />
-                      <input name="body" placeholder="Reply in thread..." />
+                      <input name="body" defaultValue={message.body} aria-label="Edit message" />
                       <button className="button small ghost" type="submit">
-                        Reply
+                        Save
                       </button>
                     </form>
-                  </div>
-                </article>
-              );
-            })}
+                  ) : null}
 
-            {!topLevelMessages.length ? <p className="muted">No messages yet. Kick off the conversation below.</p> : null}
-          </div>
+                  {threadReplies.length > 0 && (
+                    <div className="chat-bubble-threads">
+                      {threadReplies.map((reply) => (
+                        <div className="chat-thread-item" key={reply.id}>
+                          <strong>{messageMap.get(reply.sender_user_id) || "Teammate"}</strong>
+                          <p style={{ margin: 0 }}>{reply.body}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <form action={postThreadReply} className="inline-form" style={{ marginTop: "8px" }}>
+                    <input type="hidden" name="parent_message_id" value={message.id} />
+                    <input type="hidden" name="channel_id" value={channel.id} />
+                    <input name="body" placeholder="Reply in thread..." />
+                    <button className="button small ghost" type="submit">
+                      Reply
+                    </button>
+                  </form>
+                </div>
+              </article>
+            );
+          })}
+
+          {!topLevelMessages.length ? <p className="muted" style={{ padding: "0 24px" }}>No messages yet. Kick off the conversation below.</p> : null}
         </div>
+      </div>
 
-        <div className="page-stack">
-          <form action={postChannelMessage} className="card form-card">
-            <h2>New message</h2>
+      <div className="chat-composer-area">
+        <div className="chat-composer-box">
+          <form action={postChannelMessage} style={{ margin: 0, display: "flex", flexDirection: "column" }}>
             <input type="hidden" name="channel_id" value={channel.id} />
-            <textarea name="body" rows={4} placeholder="Share an update, decision, or blocker..." required />
-            <button className="button primary" type="submit">
-              Send
-            </button>
-          </form>
-
-          <form action={uploadWorkspaceFile} className="card form-card">
-            <h2>Attach file</h2>
-            <input type="hidden" name="channel_id" value={channel.id} />
-            <input type="hidden" name="scope" value="channel" />
-            <input name="file" type="file" required />
-            <button className="button" type="submit">
-              Upload file
-            </button>
+            <textarea className="chat-composer-input" name="body" placeholder={`Message #${channel.slug}...`} required></textarea>
+            
+            <div className="chat-composer-toolbar">
+              <div className="chat-composer-actions">
+              </div>
+              <button className="button primary small" type="submit" style={{ borderRadius: '6px' }}>
+                Send
+              </button>
+            </div>
           </form>
         </div>
-      </section>
+        
+        <form action={uploadWorkspaceFile} className="inline-form" style={{ marginTop: "8px" }}>
+          <input type="hidden" name="channel_id" value={channel.id} />
+          <input type="hidden" name="scope" value="channel" />
+          <input name="file" type="file" required style={{ fontSize: "12px", border: "none", padding: 0 }} />
+          <button className="button small ghost" type="submit">
+            Upload attachment
+          </button>
+        </form>
+      </div>
     </div>
   );
+
 }

@@ -41,94 +41,103 @@ export default async function DirectMessageDetailPage({
   const members = (memberships ?? []).map((membership: { user_id: string }) => profileMap.get(membership.user_id) || "Teammate");
   const messageList = (messages ?? []) as Message[];
 
+
   return (
-    <div className="page-stack">
-      <section className="project-hero">
+    <div className="chat-viewport">
+      <header className="chat-viewport-header">
         <div>
-          <p className="eyebrow">Direct message</p>
           <h1>{conversation.title || members.join(", ") || "Conversation"}</h1>
           <p>Private coordination for quick decisions, follow-ups, and asynchronous updates.</p>
         </div>
-      </section>
+      </header>
 
-      <section className="conversation-layout">
-        <div className="card conversation-card">
-          <div className="message-list">
-            {messageList.filter((message) => !message.parent_message_id).map((message) => (
-              <article className="chat-message-row" key={message.id}>
-                <div className="chat-avatar">
-                  {(profileMap.get(message.sender_user_id) || "T")[0].toUpperCase()}
+      <div className="chat-scroll-area">
+        <div className="message-list">
+          {messageList.filter((message) => !message.parent_message_id).map((message) => (
+            <article className="chat-message-row" key={message.id}>
+              <div className="chat-avatar large" style={{ width: '42px', height: '42px', fontSize: '1.2rem', borderRadius: '8px' }}>
+                {(profileMap.get(message.sender_user_id) || "T")[0].toUpperCase()}
+              </div>
+              
+              <div className="chat-content">
+                <div className="chat-meta">
+                  <strong style={{ fontSize: '15px' }}>{profileMap.get(message.sender_user_id) || "Teammate"}</strong>
+                  <small>{new Date(message.created_at).toLocaleString([], { hour: '2-digit', minute: '2-digit' })}</small>
                 </div>
-                
-                <div className="chat-content">
-                  <div className="chat-meta">
-                    <strong>{profileMap.get(message.sender_user_id) || "Teammate"}</strong>
-                    <small>{new Date(message.created_at).toLocaleString([], { hour: '2-digit', minute: '2-digit' })}</small>
-                  </div>
 
-                  <div className="chat-bubble">
-                    <p>{message.body}</p>
-                  </div>
+                <div className="chat-bubble">
+                  <p style={{ margin: 0, fontSize: '15px' }}>{message.body}</p>
+                </div>
 
-                  <div className="chat-actions">
-                    {message.sender_user_id === user.id ? (
-                      <form action={deleteMessage}>
-                        <input type="hidden" name="message_id" value={message.id} />
-                        <input type="hidden" name="conversation_id" value={conversation.id} />
-                        <button className="button danger small ghost" type="submit" style={{ padding: "0.2rem 0.5rem" }}>
-                          Delete
-                        </button>
-                      </form>
-                    ) : null}
-                  </div>
-
+                <div className="message-hover-actions">
                   {message.sender_user_id === user.id ? (
-                    <form action={editMessage} className="inline-form message-edit-form" style={{ marginTop: "8px" }}>
+                    <form action={deleteMessage}>
                       <input type="hidden" name="message_id" value={message.id} />
                       <input type="hidden" name="conversation_id" value={conversation.id} />
-                      <input name="body" defaultValue={message.body} aria-label="Edit message" />
-                      <button className="button small ghost" type="submit">
-                        Save
+                      <button className="button danger small ghost" type="submit">
+                        Delete
                       </button>
                     </form>
                   ) : null}
+                </div>
 
-                  {messageList.filter((reply) => reply.parent_message_id === message.id).length > 0 && (
-                    <div className="chat-bubble-threads">
-                      {messageList
-                        .filter((reply) => reply.parent_message_id === message.id)
-                        .map((reply) => (
-                          <div className="chat-thread-item" key={reply.id}>
-                            <strong>{profileMap.get(reply.sender_user_id) || "Teammate"}</strong>
-                            <p>{reply.body}</p>
-                          </div>
-                        ))}
-                    </div>
-                  )}
-
-                  <form action={postThreadReply} className="inline-form" style={{ marginTop: "8px" }}>
-                    <input type="hidden" name="parent_message_id" value={message.id} />
+                {message.sender_user_id === user.id ? (
+                  <form action={editMessage} className="inline-form message-edit-form" style={{ marginTop: "8px" }}>
+                    <input type="hidden" name="message_id" value={message.id} />
                     <input type="hidden" name="conversation_id" value={conversation.id} />
-                    <input name="body" placeholder="Reply in thread..." />
+                    <input name="body" defaultValue={message.body} aria-label="Edit message" />
                     <button className="button small ghost" type="submit">
-                      Reply
+                      Save
                     </button>
                   </form>
-                </div>
-              </article>
-            ))}
-          </div>
-        </div>
+                ) : null}
 
-        <form action={postDirectMessage} className="card form-card">
-          <h2>Message</h2>
-          <input type="hidden" name="conversation_id" value={conversation.id} />
-          <textarea name="body" rows={5} placeholder="Write your message..." required />
-          <button className="button primary" type="submit">
-            Send
-          </button>
-        </form>
-      </section>
+                {messageList.filter((reply) => reply.parent_message_id === message.id).length > 0 && (
+                  <div className="chat-bubble-threads">
+                    {messageList
+                      .filter((reply) => reply.parent_message_id === message.id)
+                      .map((reply) => (
+                        <div className="chat-thread-item" key={reply.id}>
+                          <strong>{profileMap.get(reply.sender_user_id) || "Teammate"}</strong>
+                          <p style={{ margin: 0 }}>{reply.body}</p>
+                        </div>
+                      ))}
+                  </div>
+                )}
+
+                <form action={postThreadReply} className="inline-form" style={{ marginTop: "8px" }}>
+                  <input type="hidden" name="parent_message_id" value={message.id} />
+                  <input type="hidden" name="conversation_id" value={conversation.id} />
+                  <input name="body" placeholder="Reply in thread..." />
+                  <button className="button small ghost" type="submit">
+                    Reply
+                  </button>
+                </form>
+              </div>
+            </article>
+          ))}
+          
+          {!messageList.length ? <p className="muted" style={{ padding: "0 24px" }}>No messages yet. Send one below.</p> : null}
+        </div>
+      </div>
+
+      <div className="chat-composer-area">
+        <div className="chat-composer-box">
+          <form action={postDirectMessage} style={{ margin: 0, display: "flex", flexDirection: "column" }}>
+            <input type="hidden" name="conversation_id" value={conversation.id} />
+            <textarea className="chat-composer-input" name="body" placeholder="Write a direct message..." required></textarea>
+            
+            <div className="chat-composer-toolbar">
+              <div className="chat-composer-actions">
+              </div>
+              <button className="button primary small" type="submit" style={{ borderRadius: '6px' }}>
+                Send
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
   );
+
 }

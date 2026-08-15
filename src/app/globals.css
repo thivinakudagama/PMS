@@ -2054,4 +2054,142 @@ dialog.modal[open] {
 .chat-thread-item p {
   margin: 0;
   color: var(--text);
-}
+}
+/* Enterprise Chat Viewport */
+.chat-viewport {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 120px);
+  min-height: 500px;
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+  overflow: hidden;
+}
+
+.chat-viewport-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+  background: #ffffff;
+  z-index: 10;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.chat-viewport-header h1 {
+  font-size: 1.35rem;
+  margin-bottom: 4px;
+  font-weight: 800;
+}
+
+.chat-viewport-header p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.chat-scroll-area {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 24px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-composer-area {
+  padding: 0 24px 24px 24px;
+  background: #ffffff;
+}
+
+.chat-composer-box {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fdfdfd;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.chat-composer-box:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
+  background: #ffffff;
+}
+
+.chat-composer-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 16px;
+  min-height: 90px;
+  resize: none;
+  font-size: 15px;
+  outline: none;
+  font-family: inherit;
+}
+
+.chat-composer-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #ffffff;
+  border-top: 1px solid rgba(0,0,0,0.05);
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+
+.chat-composer-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Hover Actions */
+.chat-message-row {
+  position: relative;
+  /* (Padding and gap already set in globals.css) */
+}
+
+.message-hover-actions {
+  position: absolute;
+  top: -16px;
+  right: 16px;
+  display: flex;
+  gap: 6px;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  opacity: 0;
+  transition: opacity 0.15s ease-in-out, transform 0.15s ease;
+  transform: translateY(4px);
+  pointer-events: none;
+  z-index: 20;
+}
+
+.chat-message-row:hover .message-hover-actions {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.message-hover-actions button {
+  padding: 4px 10px !important;
+  font-size: 12px !important;
+  min-height: auto !important;
+  border-radius: 4px !important;
+}
+
+.message-hover-actions form {
+  margin: 0;
+}
+
+.chat-bubble-threads {
+  margin-top: 8px;
+  border-left: 2px solid var(--border);
+  padding-left: 12px;
+}
