@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getCurrentOrg, requirePermission } from "@/lib/current-org";
 import { ACTIONS, MODULES, type PermissionSet } from "@/lib/rbac";
@@ -63,7 +63,10 @@ async function logActivity(
     detail?: string | null;
   }
 ) {
-  await supabase.from("activity_events").insert(payload);
+  {
+      const { error } = await supabase.from("activity_events").insert(payload);
+      if (error) return redirectWithError(error.message);
+    }
 }
 
 async function notifyUsers(
@@ -80,16 +83,19 @@ async function notifyUsers(
   const uniqueIds = [...new Set(userIds.filter(Boolean))];
   if (!uniqueIds.length) return;
 
-  await supabase.from("notifications").insert(
-    uniqueIds.map((userId) => ({
-      organization_id: organizationId,
-      user_id: userId,
-      type: payload.type,
-      title: payload.title,
-      body: payload.body ?? null,
-      link: payload.link ?? null
-    }))
-  );
+  {
+      const { error } = await supabase.from("notifications").insert(
+        uniqueIds.map((userId) => ({
+          organization_id: organizationId,
+          user_id: userId,
+          type: payload.type,
+          title: payload.title,
+          body: payload.body ?? null,
+          link: payload.link ?? null
+        }))
+      );
+      if (error) return redirectWithError(error.message);
+    }
 }
 
 async function getProjectChannels(supabase: any, projectId: string) {
@@ -103,16 +109,19 @@ async function addUsersToProjectChannels(supabase: any, organizationId: string, 
 
   if (!channels.length || !uniqueUserIds.length) return;
 
-  await supabase.from("channel_members").upsert(
-    channels.flatMap((channel: { id: string }) =>
-      uniqueUserIds.map((userId) => ({
-        organization_id: organizationId,
-        channel_id: channel.id,
-        user_id: userId
-      }))
-    ),
-    { onConflict: "channel_id,user_id" }
-  );
+  {
+      const { error } = await supabase.from("channel_members").upsert(
+        channels.flatMap((channel: { id: string }) =>
+          uniqueUserIds.map((userId) => ({
+            organization_id: organizationId,
+            channel_id: channel.id,
+            user_id: userId
+          }))
+        ),
+        { onConflict: "channel_id,user_id" }
+      );
+      if (error) return redirectWithError(error.message);
+    }
 }
 
 async function removeUsersFromProjectChannels(supabase: any, projectId: string, userIds: string[]) {
@@ -156,7 +165,7 @@ async function assertProjectMemberAssignee(supabase: any, organizationId: string
     .maybeSingle();
 
   if (!membership) {
-    throw new Error("Tasks can only be assigned to project members.");
+    return redirectWithError("Tasks can only be assigned to project members.");
   }
 }
 
@@ -186,18 +195,24 @@ async function createProjectChannelArtifacts(
     .single();
 
   if (channel) {
-    await supabase.from("channel_members").insert({
-      organization_id: organizationId,
-      channel_id: channel.id,
-      user_id: userId
-    });
+    {
+        const { error } = await supabase.from("channel_members").insert({
+            organization_id: organizationId,
+            channel_id: channel.id,
+            user_id: userId
+          });
+        if (error) return redirectWithError(error.message);
+      }
 
-    await supabase.from("messages").insert({
-      organization_id: organizationId,
-      channel_id: channel.id,
-      sender_user_id: userId,
-      body: `Welcome to #${channel.slug}. This project channel is ready for status updates, task coordination, and decisions.`
-    });
+    {
+        const { error } = await supabase.from("messages").insert({
+            organization_id: organizationId,
+            channel_id: channel.id,
+            sender_user_id: userId,
+            body: `Welcome to #${channel.slug}. This project channel is ready for status updates, task coordination, and decisions.`
+          });
+        if (error) return redirectWithError(error.message);
+      }
 
     const subchannels = [
       { suffix: "updates", name: `${project.name} Updates`, purpose: "updates" },
@@ -229,103 +244,115 @@ async function createProjectChannelArtifacts(
         .single();
 
       if (createdSubchannel) {
-        await supabase.from("channel_members").insert({
-          organization_id: organizationId,
-          channel_id: createdSubchannel.id,
-          user_id: userId
-        });
+        {
+            const { error } = await supabase.from("channel_members").insert({
+                    organization_id: organizationId,
+                    channel_id: createdSubchannel.id,
+                    user_id: userId
+                  });
+            if (error) return redirectWithError(error.message);
+          }
       }
     }
   }
 
-  await supabase.from("project_docs").upsert(
-    {
-      organization_id: organizationId,
-      project_id: project.id,
-      title: "Project overview",
-      content_json: {
-        text: `Project: ${project.name}\n\nGoals\n- \n\nMilestones\n- \n\nStakeholders\n- \n\nRisks\n- `
-      },
-      created_by: userId
-    },
-    { onConflict: "project_id,title" }
-  );
-
-  await supabase.from("automations").insert([
-    {
-      organization_id: organizationId,
-      project_id: project.id,
-      name: "Post task status changes to channel",
-      trigger_type: "task_status_changed",
-      action_type: "post_message",
-      created_by: userId,
-      config: { audience: "project_channel" }
-    },
-    {
-      organization_id: organizationId,
-      project_id: project.id,
-      name: "Daily overdue digest",
-      trigger_type: "task_overdue_daily",
-      action_type: "send_notification",
-      created_by: userId,
-      config: { audience: "project_members" }
-    },
-    {
-      organization_id: organizationId,
-      project_id: project.id,
-      name: "Weekly project summary draft",
-      trigger_type: "weekly_summary",
-      action_type: "post_message",
-      created_by: userId,
-      config: { audience: "project_channel" }
+  {
+      const { error } = await supabase.from("project_docs").upsert(
+        {
+          organization_id: organizationId,
+          project_id: project.id,
+          title: "Project overview",
+          content_json: {
+            text: `Project: ${project.name}\n\nGoals\n- \n\nMilestones\n- \n\nStakeholders\n- \n\nRisks\n- `
+          },
+          created_by: userId
+        },
+        { onConflict: "project_id,title" }
+      );
+      if (error) return redirectWithError(error.message);
     }
-  ]);
 
-  await supabase.from("project_templates").upsert(
-    [
-      {
-        organization_id: organizationId,
-        name: "Sprint delivery",
-        category: "Delivery",
-        description: "Track sprint goals, blockers, and release readiness.",
-        created_by: userId,
-        template_data: { sections: ["Goals", "Backlog", "Risks", "Release notes"] }
-      },
-      {
-        organization_id: organizationId,
-        name: "Client delivery",
-        category: "Client",
-        description: "Coordinate scope, milestones, approvals, and launch tasks.",
-        created_by: userId,
-        template_data: { sections: ["Scope", "Milestones", "Approvals", "Launch plan"] }
-      },
-      {
-        organization_id: organizationId,
-        name: "Bug triage",
-        category: "Engineering",
-        description: "Handle incoming defects with ownership and severity tracking.",
-        created_by: userId,
-        template_data: { sections: ["Incoming bugs", "Severity", "Owner", "Fix verification"] }
-      },
-      {
-        organization_id: organizationId,
-        name: "Onboarding",
-        category: "People",
-        description: "Run IT onboarding with checklists, docs, and handoffs.",
-        created_by: userId,
-        template_data: { sections: ["Accounts", "Devices", "Introductions", "Training"] }
-      },
-      {
-        organization_id: organizationId,
-        name: "Incident response",
-        category: "Operations",
-        description: "Centralize response updates, owners, and postmortem work.",
-        created_by: userId,
-        template_data: { sections: ["Timeline", "Owners", "Mitigation", "Postmortem"] }
-      }
-    ],
-    { onConflict: "organization_id,name" }
-  );
+  {
+      const { error } = await supabase.from("automations").insert([
+        {
+          organization_id: organizationId,
+          project_id: project.id,
+          name: "Post task status changes to channel",
+          trigger_type: "task_status_changed",
+          action_type: "post_message",
+          created_by: userId,
+          config: { audience: "project_channel" }
+        },
+        {
+          organization_id: organizationId,
+          project_id: project.id,
+          name: "Daily overdue digest",
+          trigger_type: "task_overdue_daily",
+          action_type: "send_notification",
+          created_by: userId,
+          config: { audience: "project_members" }
+        },
+        {
+          organization_id: organizationId,
+          project_id: project.id,
+          name: "Weekly project summary draft",
+          trigger_type: "weekly_summary",
+          action_type: "post_message",
+          created_by: userId,
+          config: { audience: "project_channel" }
+        }
+      ]);
+      if (error) return redirectWithError(error.message);
+    }
+
+  {
+      const { error } = await supabase.from("project_templates").upsert(
+        [
+          {
+            organization_id: organizationId,
+            name: "Sprint delivery",
+            category: "Delivery",
+            description: "Track sprint goals, blockers, and release readiness.",
+            created_by: userId,
+            template_data: { sections: ["Goals", "Backlog", "Risks", "Release notes"] }
+          },
+          {
+            organization_id: organizationId,
+            name: "Client delivery",
+            category: "Client",
+            description: "Coordinate scope, milestones, approvals, and launch tasks.",
+            created_by: userId,
+            template_data: { sections: ["Scope", "Milestones", "Approvals", "Launch plan"] }
+          },
+          {
+            organization_id: organizationId,
+            name: "Bug triage",
+            category: "Engineering",
+            description: "Handle incoming defects with ownership and severity tracking.",
+            created_by: userId,
+            template_data: { sections: ["Incoming bugs", "Severity", "Owner", "Fix verification"] }
+          },
+          {
+            organization_id: organizationId,
+            name: "Onboarding",
+            category: "People",
+            description: "Run IT onboarding with checklists, docs, and handoffs.",
+            created_by: userId,
+            template_data: { sections: ["Accounts", "Devices", "Introductions", "Training"] }
+          },
+          {
+            organization_id: organizationId,
+            name: "Incident response",
+            category: "Operations",
+            description: "Centralize response updates, owners, and postmortem work.",
+            created_by: userId,
+            template_data: { sections: ["Timeline", "Owners", "Mitigation", "Postmortem"] }
+          }
+        ],
+        { onConflict: "organization_id,name" }
+      );
+      if (error) return redirectWithError(error.message);
+    }
 
   return channel;
 }
@@ -375,7 +402,7 @@ export async function createProject(formData: FormData) {
     .select("*")
     .single();
 
-  if (error || !project) throw new Error(error?.message ?? "Unable to create project.");
+  if (error || !project) return redirectWithError(error?.message ?? "Unable to create project.");
 
   const channel = await createProjectChannelArtifacts(supabase, organizationId, user.id, project);
 
@@ -409,17 +436,20 @@ export async function updateProjectStatus(formData: FormData) {
     .eq("id", projectId)
     .select("id, name")
     .single();
-  if (error || !project) throw new Error(error?.message ?? "Unable to update project.");
+  if (error || !project) return redirectWithError(error?.message ?? "Unable to update project.");
 
   const channelId = await getProjectDefaultChannelId(supabase, projectId);
 
   if (channelId) {
-    await supabase.from("messages").insert({
-      organization_id: organizationId,
-      channel_id: channelId,
-      sender_user_id: user.id,
-      body: `Project status updated to ${status}.`
-    });
+    {
+        const { error } = await supabase.from("messages").insert({
+            organization_id: organizationId,
+            channel_id: channelId,
+            sender_user_id: user.id,
+            body: `Project status updated to ${status}.`
+          });
+        if (error) return redirectWithError(error.message);
+      }
   }
 
   await logActivity(supabase, {
@@ -443,7 +473,7 @@ export async function deleteProject(formData: FormData) {
 
   const projectId = getString(formData, "project_id");
   const { error } = await supabase.from("projects").delete().eq("id", projectId);
-  if (error) throw new Error(error.message);
+  if (error) return redirectWithError(error.message);
 
   revalidatePath("/dashboard");
   revalidatePath("/projects");
@@ -477,7 +507,7 @@ export async function createTask(formData: FormData) {
     .select("id, title, assignee_user_id, status")
     .single();
 
-  if (error || !task) throw new Error(error?.message ?? "Unable to create task.");
+  if (error || !task) return redirectWithError(error?.message ?? "Unable to create task.");
 
   const channelId = await getProjectDefaultChannelId(supabase, projectId);
   if (channelId) {
@@ -493,7 +523,10 @@ export async function createTask(formData: FormData) {
       .single();
 
     if (rootMessage?.id) {
-      await supabase.from("tasks").update({ discussion_message_id: rootMessage.id }).eq("id", task.id);
+      {
+          const { error } = await supabase.from("tasks").update({ discussion_message_id: rootMessage.id }).eq("id", task.id);
+          if (error) return redirectWithError(error.message);
+        }
     }
   }
 
@@ -550,18 +583,21 @@ export async function updateTask(formData: FormData) {
     .select("id, title, assignee_user_id, discussion_message_id, status")
     .single();
 
-  if (error || !task) throw new Error(error?.message ?? "Unable to update task.");
+  if (error || !task) return redirectWithError(error?.message ?? "Unable to update task.");
 
   const channelId = await getProjectDefaultChannelId(supabase, projectId);
 
   if (channelId) {
-    await supabase.from("messages").insert({
-      organization_id: organizationId,
-      channel_id: channelId,
-      sender_user_id: user.id,
-      parent_message_id: task.discussion_message_id,
-      body: `Task updated: ${task.title}${assignee ? ` · Assigned to ${assignee}` : ""} · Status: ${task.status}`
-    });
+    {
+        const { error } = await supabase.from("messages").insert({
+            organization_id: organizationId,
+            channel_id: channelId,
+            sender_user_id: user.id,
+            parent_message_id: task.discussion_message_id,
+            body: `Task updated: ${task.title}${assignee ? ` · Assigned to ${assignee}` : ""} · Status: ${task.status}`
+          });
+        if (error) return redirectWithError(error.message);
+      }
   }
 
   await logActivity(supabase, {
@@ -605,17 +641,20 @@ export async function updateTaskStatus(formData: FormData) {
     .select("id, title, assignee_user_id, discussion_message_id")
     .single();
 
-  if (error || !task) throw new Error(error?.message ?? "Unable to update task status.");
+  if (error || !task) return redirectWithError(error?.message ?? "Unable to update task status.");
 
   const channelId = await getProjectDefaultChannelId(supabase, projectId);
   if (channelId) {
-    await supabase.from("messages").insert({
-      organization_id: organizationId,
-      channel_id: channelId,
-      sender_user_id: user.id,
-      parent_message_id: task.discussion_message_id,
-      body: `Task "${task.title}" moved to ${status}.`
-    });
+    {
+        const { error } = await supabase.from("messages").insert({
+            organization_id: organizationId,
+            channel_id: channelId,
+            sender_user_id: user.id,
+            parent_message_id: task.discussion_message_id,
+            body: `Task "${task.title}" moved to ${status}.`
+          });
+        if (error) return redirectWithError(error.message);
+      }
   }
 
   await logActivity(supabase, {
@@ -651,7 +690,7 @@ export async function deleteTask(formData: FormData) {
   const projectId = getString(formData, "project_id");
 
   const { error } = await supabase.from("tasks").delete().eq("id", taskId);
-  if (error) throw new Error(error.message);
+  if (error) return redirectWithError(error.message);
 
   revalidatePath("/dashboard");
   revalidatePath("/tasks");
@@ -671,7 +710,7 @@ export async function createProjectMember(formData: FormData) {
     .single();
 
   if (memberLookupError || !orgMember?.user_id) {
-    throw new Error("Choose a valid staff member.");
+    return redirectWithError("Choose a valid staff member.");
   }
 
   // Guard: check if member is already in this project
@@ -700,7 +739,7 @@ export async function createProjectMember(formData: FormData) {
     role: nullable(getString(formData, "role"))
   });
 
-  if (error) throw new Error(error.message);
+  if (error) return redirectWithError(error.message);
 
   const channelId = await getProjectDefaultChannelId(supabase, projectId);
   if (orgMember.user_id) {
@@ -742,10 +781,10 @@ export async function removeProjectMember(formData: FormData) {
     .eq("id", projectMemberId)
     .single();
 
-  if (memberError || !member) throw new Error(memberError?.message ?? "Project member not found.");
+  if (memberError || !member) return redirectWithError(memberError?.message ?? "Project member not found.");
 
   const { error } = await supabase.from("project_members").delete().eq("id", projectMemberId);
-  if (error) throw new Error(error.message);
+  if (error) return redirectWithError(error.message);
 
   if (member.user_id) {
     await removeUsersFromProjectChannels(supabase, projectId, [member.user_id]);
@@ -789,13 +828,16 @@ export async function createProjectChannel(formData: FormData) {
     .select("id")
     .single();
 
-  if (error || !channel) throw new Error(error?.message ?? "Unable to create channel.");
+  if (error || !channel) return redirectWithError(error?.message ?? "Unable to create channel.");
 
-  await supabase.from("channel_members").insert({
-    organization_id: organizationId,
-    channel_id: channel.id,
-    user_id: user.id
-  });
+  {
+      const { error } = await supabase.from("channel_members").insert({
+        organization_id: organizationId,
+        channel_id: channel.id,
+        user_id: user.id
+      });
+      if (error) return redirectWithError(error.message);
+    }
 
   if (projectId) {
     const members = await getProjectMemberOptions(supabase, organizationId, projectId);
@@ -825,7 +867,7 @@ export async function postChannelMessage(formData: FormData) {
     .eq("id", channelId)
     .single();
 
-  if (!channel) throw new Error("You do not have access to this channel.");
+  if (!channel) return redirectWithError("You do not have access to this channel.");
 
   const mentions = extractMentions(body);
   const { data: message, error } = await supabase
@@ -840,9 +882,12 @@ export async function postChannelMessage(formData: FormData) {
     .select("id")
     .single();
 
-  if (error || !message) throw new Error(error?.message ?? "Unable to post message.");
+  if (error || !message) return redirectWithError(error?.message ?? "Unable to post message.");
 
-  await supabase.from("channels").update({ updated_at: new Date().toISOString() }).eq("id", channelId);
+  {
+      const { error } = await supabase.from("channels").update({ updated_at: new Date().toISOString() }).eq("id", channelId);
+      if (error) return redirectWithError(error.message);
+    }
 
   const { data: mentionedMembers } = mentions.length
     ? await supabase
@@ -887,7 +932,7 @@ export async function editMessage(formData: FormData) {
     .eq("organization_id", organizationId)
     .eq("sender_user_id", user.id);
 
-  if (error) throw new Error(error.message);
+  if (error) return redirectWithError(error.message);
 
   if (channelId) revalidatePath(`/channels/${channelId}`);
   if (conversationId) revalidatePath(`/direct-messages/${conversationId}`);
@@ -905,7 +950,7 @@ export async function deleteMessage(formData: FormData) {
     .eq("id", messageId)
     .eq("organization_id", organizationId)
     .eq("sender_user_id", user.id);
-  if (error) throw new Error(error.message);
+  if (error) return redirectWithError(error.message);
 
   if (channelId) revalidatePath(`/channels/${channelId}`);
   if (conversationId) revalidatePath(`/direct-messages/${conversationId}`);
@@ -929,9 +974,9 @@ export async function postThreadReply(formData: FormData) {
     .eq("id", parentMessageId)
     .single();
 
-  if (!parent) throw new Error("Thread not found.");
+  if (!parent) return redirectWithError("Thread not found.");
   if ((parent.channel_id ?? null) !== channelId || (parent.conversation_id ?? null) !== conversationId) {
-    throw new Error("This reply does not belong to the selected conversation.");
+    return redirectWithError("This reply does not belong to the selected conversation.");
   }
 
   const { error } = await supabase.from("messages").insert({
@@ -944,14 +989,20 @@ export async function postThreadReply(formData: FormData) {
     mentions: extractMentions(body)
   });
 
-  if (error) throw new Error(error.message);
+  if (error) return redirectWithError(error.message);
 
   if (channelId) {
-    await supabase.from("channels").update({ updated_at: new Date().toISOString() }).eq("id", channelId);
+    {
+        const { error } = await supabase.from("channels").update({ updated_at: new Date().toISOString() }).eq("id", channelId);
+        if (error) return redirectWithError(error.message);
+      }
   }
 
   if (conversationId) {
-    await supabase.from("conversations").update({ updated_at: new Date().toISOString() }).eq("id", conversationId);
+    {
+        const { error } = await supabase.from("conversations").update({ updated_at: new Date().toISOString() }).eq("id", conversationId);
+        if (error) return redirectWithError(error.message);
+      }
   }
 
   if (parent?.sender_user_id && parent.sender_user_id !== user.id) {
@@ -982,9 +1033,9 @@ export async function toggleMessageReaction(formData: FormData) {
     .eq("id", messageId)
     .single();
 
-  if (!message) throw new Error("Message not found.");
+  if (!message) return redirectWithError("Message not found.");
   if ((message.channel_id ?? null) !== channelId || (message.conversation_id ?? null) !== conversationId) {
-    throw new Error("This reaction does not belong to the selected conversation.");
+    return redirectWithError("This reaction does not belong to the selected conversation.");
   }
 
   const existing = await supabase
@@ -997,14 +1048,20 @@ export async function toggleMessageReaction(formData: FormData) {
     .maybeSingle();
 
   if (existing.data?.id) {
-    await supabase.from("message_reactions").delete().eq("id", existing.data.id);
+    {
+        const { error } = await supabase.from("message_reactions").delete().eq("id", existing.data.id);
+        if (error) return redirectWithError(error.message);
+      }
   } else {
-    await supabase.from("message_reactions").insert({
-      organization_id: organizationId,
-      message_id: messageId,
-      user_id: user.id,
-      emoji
-    });
+    {
+        const { error } = await supabase.from("message_reactions").insert({
+            organization_id: organizationId,
+            message_id: messageId,
+            user_id: user.id,
+            emoji
+          });
+        if (error) return redirectWithError(error.message);
+      }
   }
 
   if (channelId) revalidatePath(`/channels/${channelId}`);
@@ -1016,7 +1073,7 @@ export async function startDirectMessage(formData: FormData) {
   const { supabase, user, organizationId } = await requirePermission("messages", "create");
 
   const teammateId = getString(formData, "teammate_user_id");
-  if (teammateId === user.id) throw new Error("Choose a teammate to start a direct message.");
+  if (teammateId === user.id) return redirectWithError("Choose a teammate to start a direct message.");
 
   const { data: teammate } = await supabase
     .from("organization_members")
@@ -1025,7 +1082,7 @@ export async function startDirectMessage(formData: FormData) {
     .eq("user_id", teammateId)
     .maybeSingle();
 
-  if (!teammate) throw new Error("That teammate is not part of this workspace.");
+  if (!teammate) return redirectWithError("That teammate is not part of this workspace.");
 
   const { data: existingMemberships } = await supabase
     .from("conversation_members")
@@ -1076,12 +1133,15 @@ export async function startDirectMessage(formData: FormData) {
     .select("id")
     .single();
 
-  if (error || !conversation) throw new Error(error?.message ?? "Unable to start conversation.");
+  if (error || !conversation) return redirectWithError(error?.message ?? "Unable to start conversation.");
 
-  await supabase.from("conversation_members").insert([
-    { organization_id: organizationId, conversation_id: conversation.id, user_id: user.id },
-    { organization_id: organizationId, conversation_id: conversation.id, user_id: teammateId }
-  ]);
+  {
+      const { error } = await supabase.from("conversation_members").insert([
+        { organization_id: organizationId, conversation_id: conversation.id, user_id: user.id },
+        { organization_id: organizationId, conversation_id: conversation.id, user_id: teammateId }
+      ]);
+      if (error) return redirectWithError(error.message);
+    }
 
   revalidatePath("/direct-messages");
   redirect(`/direct-messages/${conversation.id}`);
@@ -1102,7 +1162,7 @@ export async function postDirectMessage(formData: FormData) {
     .eq("user_id", user.id)
     .single();
 
-  if (!membership) throw new Error("You do not have access to this conversation.");
+  if (!membership) return redirectWithError("You do not have access to this conversation.");
 
   const { error } = await supabase.from("messages").insert({
     organization_id: organizationId,
@@ -1112,9 +1172,12 @@ export async function postDirectMessage(formData: FormData) {
     mentions: extractMentions(body)
   });
 
-  if (error) throw new Error(error.message);
+  if (error) return redirectWithError(error.message);
 
-  await supabase.from("conversations").update({ updated_at: new Date().toISOString() }).eq("id", conversationId);
+  {
+      const { error } = await supabase.from("conversations").update({ updated_at: new Date().toISOString() }).eq("id", conversationId);
+      if (error) return redirectWithError(error.message);
+    }
 
   const { data: members } = await supabase
     .from("conversation_members")
@@ -1158,7 +1221,7 @@ export async function saveProjectDoc(formData: FormData) {
     { onConflict: "project_id,title" }
   );
 
-  if (error) throw new Error(error.message);
+  if (error) return redirectWithError(error.message);
 
   await logActivity(supabase, {
     organization_id: organizationId,
@@ -1188,7 +1251,7 @@ export async function addTaskComment(formData: FormData) {
     body
   });
 
-  if (error) throw new Error(error.message);
+  if (error) return redirectWithError(error.message);
 
   await logActivity(supabase, {
     organization_id: organizationId,
@@ -1210,7 +1273,7 @@ export async function uploadWorkspaceFile(formData: FormData) {
 
   const rawFile = formData.get("file");
   if (!(rawFile instanceof File) || !rawFile.size) {
-    throw new Error("Choose a file to upload.");
+    return redirectWithError("Choose a file to upload.");
   }
 
   // Check if Google Drive is configured before attempting upload
@@ -1267,7 +1330,7 @@ export async function uploadWorkspaceFile(formData: FormData) {
     scope
   });
 
-  if (error) throw new Error(error.message);
+  if (error) return redirectWithError(error.message);
 
   revalidatePath("/files");
   if (projectId) revalidatePath(`/projects/${projectId}`);
@@ -1285,7 +1348,7 @@ export async function deleteWorkspaceFile(formData: FormData) {
     .eq("id", fileId)
     .single();
 
-  if (lookupError || !file) throw new Error(lookupError?.message ?? "File not found.");
+  if (lookupError || !file) return redirectWithError(lookupError?.message ?? "File not found.");
 
   if (file.storage_provider === "google_drive" && file.drive_file_id) {
     await deleteDriveFile(file.drive_file_id);
@@ -1296,7 +1359,7 @@ export async function deleteWorkspaceFile(formData: FormData) {
   }
 
   const { error } = await supabase.from("files").delete().eq("id", fileId);
-  if (error) throw new Error(error.message);
+  if (error) return redirectWithError(error.message);
 
   revalidatePath("/files");
   if (file.project_id) revalidatePath(`/projects/${file.project_id}`);
@@ -1314,7 +1377,7 @@ export async function markNotificationRead(formData: FormData) {
     .eq("id", notificationId)
     .eq("user_id", user.id);
 
-  if (error) throw new Error(error.message);
+  if (error) return redirectWithError(error.message);
 
   revalidatePath("/inbox");
 }
@@ -1788,4 +1851,24 @@ export async function switchWorkspace(formData: FormData) {
   revalidatePath("/dashboard");
   revalidatePath("/settings");
   redirect("/settings?message=Workspace switched successfully.");
+}
+
+async function redirectWithError(message: string, fallbackPath: string = "/dashboard"): Promise<never> {
+
+      const headersList = await headers();
+      const referer = headersList.get("referer");
+      let redirectPath = fallbackPath;
+      if (referer) {
+        try {
+          const url = new URL(referer);
+          url.searchParams.set("error", message);
+          redirectPath = url.pathname + url.search;
+        } catch (e) {
+          // Ignore
+        }
+      } else {
+        redirectPath = `${fallbackPath}?error=${encodeURIComponent(message)}`;
+      }
+      redirect(redirectPath);
+          
 }

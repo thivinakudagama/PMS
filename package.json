@@ -17,12 +17,13 @@
     "react-dom": "latest"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "latest",
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "eslint": "latest",
     "eslint-config-next": "latest",
-    "typescript": "latest",
-    "@eslint/eslintrc": "latest"
+    "ts-morph": "^28.0.0",
+    "typescript": "latest"
   }
 }
