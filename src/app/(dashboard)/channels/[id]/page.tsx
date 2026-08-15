@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import type { Message } from "@/lib/types";
 import { deleteMessage, editMessage, postChannelMessage, postThreadReply, toggleMessageReaction, uploadWorkspaceFile } from "@/app/(dashboard)/actions";
 import { requireModuleAccess } from "@/lib/current-org";
+import { MessageRow } from "@/components/chat/message-row";
 
 export default async function ChannelDetailPage({
   params
@@ -55,77 +56,24 @@ export default async function ChannelDetailPage({
             const threadReplies = messageList.filter((reply) => reply.parent_message_id === message.id);
             const groupedReactions = (reactions ?? []).filter((reaction: any) => reaction.message_id === message.id);
 
+            // Group reactions
+            const groupedReactionsMap = new Map<string, number>();
+            groupedReactions.forEach((r: any) => {
+              groupedReactionsMap.set(r.emoji, (groupedReactionsMap.get(r.emoji) || 0) + 1);
+            });
+            const groupedReactionsArray = Array.from(groupedReactionsMap.entries()).map(([emoji, count]) => ({ emoji, count }));
+
             return (
-              <article className="chat-message-row" id={`message-${message.id}`} key={message.id}>
-                <div className="chat-avatar large" style={{ width: '42px', height: '42px', fontSize: '1.2rem', borderRadius: '8px' }}>
-                  {(messageMap.get(message.sender_user_id) || "T")[0].toUpperCase()}
-                </div>
-                
-                <div className="chat-content">
-                  <div className="chat-meta">
-                    <strong style={{ fontSize: '15px' }}>{messageMap.get(message.sender_user_id) || "Teammate"}</strong>
-                    <small>{new Date(message.created_at).toLocaleString([], { hour: '2-digit', minute: '2-digit' })}</small>
-                  </div>
-                  
-                  <div className="chat-bubble">
-                    <p style={{ margin: 0, fontSize: '15px' }}>{message.body}</p>
-                  </div>
-
-                  <div className="message-hover-actions">
-                    {["👍", "✅"].map((emoji) => (
-                      <form action={toggleMessageReaction} key={emoji}>
-                        <input type="hidden" name="message_id" value={message.id} />
-                        <input type="hidden" name="channel_id" value={channel.id} />
-                        <input type="hidden" name="emoji" value={emoji} />
-                        <button className="button small ghost" type="submit">
-                          {emoji} {groupedReactions.filter((reaction: any) => reaction.emoji === emoji).length || ""}
-                        </button>
-                      </form>
-                    ))}
-
-                    {message.sender_user_id === user.id ? (
-                      <form action={deleteMessage}>
-                        <input type="hidden" name="message_id" value={message.id} />
-                        <input type="hidden" name="channel_id" value={channel.id} />
-                        <button className="button danger small ghost" type="submit">
-                          Delete
-                        </button>
-                      </form>
-                    ) : null}
-                  </div>
-
-                  {message.sender_user_id === user.id ? (
-                    <form action={editMessage} className="inline-form message-edit-form" style={{ marginTop: "8px" }}>
-                      <input type="hidden" name="message_id" value={message.id} />
-                      <input type="hidden" name="channel_id" value={channel.id} />
-                      <input name="body" defaultValue={message.body} aria-label="Edit message" />
-                      <button className="button small ghost" type="submit">
-                        Save
-                      </button>
-                    </form>
-                  ) : null}
-
-                  {threadReplies.length > 0 && (
-                    <div className="chat-bubble-threads">
-                      {threadReplies.map((reply) => (
-                        <div className="chat-thread-item" key={reply.id}>
-                          <strong>{messageMap.get(reply.sender_user_id) || "Teammate"}</strong>
-                          <p style={{ margin: 0 }}>{reply.body}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  <form action={postThreadReply} className="inline-form" style={{ marginTop: "8px" }}>
-                    <input type="hidden" name="parent_message_id" value={message.id} />
-                    <input type="hidden" name="channel_id" value={channel.id} />
-                    <input name="body" placeholder="Reply in thread..." />
-                    <button className="button small ghost" type="submit">
-                      Reply
-                    </button>
-                  </form>
-                </div>
-              </article>
+              <MessageRow
+                key={message.id}
+                message={message}
+                senderName={messageMap.get(message.sender_user_id) || "Teammate"}
+                channelId={channel.id}
+                currentUserId={user.id}
+                groupedReactions={groupedReactionsArray}
+                threadReplies={threadReplies}
+                replySendersMap={Object.fromEntries(messageMap)}
+              />
             );
           })}
 

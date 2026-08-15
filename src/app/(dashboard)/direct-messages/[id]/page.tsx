@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import type { Message } from "@/lib/types";
 import { deleteMessage, editMessage, postDirectMessage, postThreadReply } from "@/app/(dashboard)/actions";
 import { requireModuleAccess } from "@/lib/current-org";
+import { MessageRow } from "@/components/chat/message-row";
 
 export default async function DirectMessageDetailPage({
   params
@@ -39,7 +40,13 @@ export default async function DirectMessageDetailPage({
 
   const profileMap = new Map((profiles ?? []).map((profile: { id: string; full_name: string | null }) => [profile.id, profile.full_name || "Teammate"]));
   const members = (memberships ?? []).map((membership: { user_id: string }) => profileMap.get(membership.user_id) || "Teammate");
+  
   const messageList = (messages ?? []) as Message[];
+  const messageIds = messageList.map((m) => m.id);
+  const { data: reactions } = messageIds.length
+    ? await supabase.from("message_reactions").select("*").eq("organization_id", organizationId).in("message_id", messageIds)
+    : { data: [] };
+
 
 
   return (
@@ -53,69 +60,29 @@ export default async function DirectMessageDetailPage({
 
       <div className="chat-scroll-area">
         <div className="message-list">
-          {messageList.filter((message) => !message.parent_message_id).map((message) => (
-            <article className="chat-message-row" key={message.id}>
-              <div className="chat-avatar large" style={{ width: '42px', height: '42px', fontSize: '1.2rem', borderRadius: '8px' }}>
-                {(profileMap.get(message.sender_user_id) || "T")[0].toUpperCase()}
-              </div>
+          {messageList.filter((message) => !message.parent_message_id).map((message) => {
+              const threadReplies = messageList.filter((reply) => reply.parent_message_id === message.id);
+              const groupedReactions = (reactions ?? []).filter((reaction: any) => reaction.message_id === message.id);
               
-              <div className="chat-content">
-                <div className="chat-meta">
-                  <strong style={{ fontSize: '15px' }}>{profileMap.get(message.sender_user_id) || "Teammate"}</strong>
-                  <small>{new Date(message.created_at).toLocaleString([], { hour: '2-digit', minute: '2-digit' })}</small>
-                </div>
+              const groupedReactionsMap = new Map<string, number>();
+              groupedReactions.forEach((r: any) => {
+                groupedReactionsMap.set(r.emoji, (groupedReactionsMap.get(r.emoji) || 0) + 1);
+              });
+              const groupedReactionsArray = Array.from(groupedReactionsMap.entries()).map(([emoji, count]) => ({ emoji, count }));
 
-                <div className="chat-bubble">
-                  <p style={{ margin: 0, fontSize: '15px' }}>{message.body}</p>
-                </div>
-
-                <div className="message-hover-actions">
-                  {message.sender_user_id === user.id ? (
-                    <form action={deleteMessage}>
-                      <input type="hidden" name="message_id" value={message.id} />
-                      <input type="hidden" name="conversation_id" value={conversation.id} />
-                      <button className="button danger small ghost" type="submit">
-                        Delete
-                      </button>
-                    </form>
-                  ) : null}
-                </div>
-
-                {message.sender_user_id === user.id ? (
-                  <form action={editMessage} className="inline-form message-edit-form" style={{ marginTop: "8px" }}>
-                    <input type="hidden" name="message_id" value={message.id} />
-                    <input type="hidden" name="conversation_id" value={conversation.id} />
-                    <input name="body" defaultValue={message.body} aria-label="Edit message" />
-                    <button className="button small ghost" type="submit">
-                      Save
-                    </button>
-                  </form>
-                ) : null}
-
-                {messageList.filter((reply) => reply.parent_message_id === message.id).length > 0 && (
-                  <div className="chat-bubble-threads">
-                    {messageList
-                      .filter((reply) => reply.parent_message_id === message.id)
-                      .map((reply) => (
-                        <div className="chat-thread-item" key={reply.id}>
-                          <strong>{profileMap.get(reply.sender_user_id) || "Teammate"}</strong>
-                          <p style={{ margin: 0 }}>{reply.body}</p>
-                        </div>
-                      ))}
-                  </div>
-                )}
-
-                <form action={postThreadReply} className="inline-form" style={{ marginTop: "8px" }}>
-                  <input type="hidden" name="parent_message_id" value={message.id} />
-                  <input type="hidden" name="conversation_id" value={conversation.id} />
-                  <input name="body" placeholder="Reply in thread..." />
-                  <button className="button small ghost" type="submit">
-                    Reply
-                  </button>
-                </form>
-              </div>
-            </article>
-          ))}
+              return (
+                <MessageRow
+                  key={message.id}
+                  message={message}
+                  senderName={profileMap.get(message.sender_user_id) || "Teammate"}
+                  conversationId={conversation.id}
+                  currentUserId={user.id}
+                  groupedReactions={groupedReactionsArray}
+                  threadReplies={threadReplies}
+                  replySendersMap={Object.fromEntries(profileMap)}
+                />
+              );
+          })}
           
           {!messageList.length ? <p className="muted" style={{ padding: "0 24px" }}>No messages yet. Send one below.</p> : null}
         </div>
