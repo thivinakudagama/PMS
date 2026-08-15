@@ -55,20 +55,16 @@ export default async function DirectMessageDetailPage({
         <div className="card conversation-card">
           <div className="message-list">
             {messageList.filter((message) => !message.parent_message_id).map((message) => (
-              <article className={`chat-message-row ${message.sender_user_id === user.id ? 'is-me' : ''}`} key={message.id}>
-                {message.sender_user_id !== user.id && (
-                  <div className="chat-avatar">
-                    {(profileMap.get(message.sender_user_id) || "T")[0].toUpperCase()}
-                  </div>
-                )}
+              <article className="chat-message-row" key={message.id}>
+                <div className="chat-avatar">
+                  {(profileMap.get(message.sender_user_id) || "T")[0].toUpperCase()}
+                </div>
                 
                 <div className="chat-content">
-                  {message.sender_user_id !== user.id && (
-                    <div className="chat-meta">
-                      <strong>{profileMap.get(message.sender_user_id) || "Teammate"}</strong>
-                      <small>{new Date(message.created_at).toLocaleString([], { hour: '2-digit', minute: '2-digit' })}</small>
-                    </div>
-                  )}
+                  <div className="chat-meta">
+                    <strong>{profileMap.get(message.sender_user_id) || "Teammate"}</strong>
+                    <small>{new Date(message.created_at).toLocaleString([], { hour: '2-digit', minute: '2-digit' })}</small>
+                  </div>
 
                   <div className="chat-bubble">
                     <p>{message.body}</p>

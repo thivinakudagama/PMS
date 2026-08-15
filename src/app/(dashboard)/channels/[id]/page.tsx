@@ -57,20 +57,16 @@ export default async function ChannelDetailPage({
               const groupedReactions = (reactions ?? []).filter((reaction: any) => reaction.message_id === message.id);
 
               return (
-                <article className={`chat-message-row ${message.sender_user_id === user.id ? 'is-me' : ''}`} id={`message-${message.id}`} key={message.id}>
-                  {message.sender_user_id !== user.id && (
-                    <div className="chat-avatar">
-                      {(messageMap.get(message.sender_user_id) || "T")[0].toUpperCase()}
-                    </div>
-                  )}
+                <article className="chat-message-row" id={`message-${message.id}`} key={message.id}>
+                  <div className="chat-avatar">
+                    {(messageMap.get(message.sender_user_id) || "T")[0].toUpperCase()}
+                  </div>
                   
                   <div className="chat-content">
-                    {message.sender_user_id !== user.id && (
-                      <div className="chat-meta">
-                        <strong>{messageMap.get(message.sender_user_id) || "Teammate"}</strong>
-                        <small>{new Date(message.created_at).toLocaleString([], { hour: '2-digit', minute: '2-digit' })}</small>
-                      </div>
-                    )}
+                    <div className="chat-meta">
+                      <strong>{messageMap.get(message.sender_user_id) || "Teammate"}</strong>
+                      <small>{new Date(message.created_at).toLocaleString([], { hour: '2-digit', minute: '2-digit' })}</small>
+                    </div>
                     
                     <div className="chat-bubble">
                       <p>{message.body}</p>
