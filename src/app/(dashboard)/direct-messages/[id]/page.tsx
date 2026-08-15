@@ -55,51 +55,70 @@ export default async function DirectMessageDetailPage({
         <div className="card conversation-card">
           <div className="message-list">
             {messageList.filter((message) => !message.parent_message_id).map((message) => (
-              <article className="message-card" key={message.id}>
-                <strong>{profileMap.get(message.sender_user_id) || "Teammate"}</strong>
-                <p>{message.body}</p>
-                <small>{new Date(message.created_at).toLocaleString()}</small>
+              <article className={`chat-message-row ${message.sender_user_id === user.id ? 'is-me' : ''}`} key={message.id}>
+                {message.sender_user_id !== user.id && (
+                  <div className="chat-avatar">
+                    {(profileMap.get(message.sender_user_id) || "T")[0].toUpperCase()}
+                  </div>
+                )}
+                
+                <div className="chat-content">
+                  {message.sender_user_id !== user.id && (
+                    <div className="chat-meta">
+                      <strong>{profileMap.get(message.sender_user_id) || "Teammate"}</strong>
+                      <small>{new Date(message.created_at).toLocaleString([], { hour: '2-digit', minute: '2-digit' })}</small>
+                    </div>
+                  )}
 
-                {message.sender_user_id === user.id ? (
-                  <form action={editMessage} className="inline-form message-edit-form">
-                    <input type="hidden" name="message_id" value={message.id} />
+                  <div className="chat-bubble">
+                    <p>{message.body}</p>
+                  </div>
+
+                  <div className="chat-actions">
+                    {message.sender_user_id === user.id ? (
+                      <form action={deleteMessage}>
+                        <input type="hidden" name="message_id" value={message.id} />
+                        <input type="hidden" name="conversation_id" value={conversation.id} />
+                        <button className="button danger small ghost" type="submit" style={{ padding: "0.2rem 0.5rem" }}>
+                          Delete
+                        </button>
+                      </form>
+                    ) : null}
+                  </div>
+
+                  {message.sender_user_id === user.id ? (
+                    <form action={editMessage} className="inline-form message-edit-form" style={{ marginTop: "8px" }}>
+                      <input type="hidden" name="message_id" value={message.id} />
+                      <input type="hidden" name="conversation_id" value={conversation.id} />
+                      <input name="body" defaultValue={message.body} aria-label="Edit message" />
+                      <button className="button small ghost" type="submit">
+                        Save
+                      </button>
+                    </form>
+                  ) : null}
+
+                  {messageList.filter((reply) => reply.parent_message_id === message.id).length > 0 && (
+                    <div className="chat-bubble-threads">
+                      {messageList
+                        .filter((reply) => reply.parent_message_id === message.id)
+                        .map((reply) => (
+                          <div className="chat-thread-item" key={reply.id}>
+                            <strong>{profileMap.get(reply.sender_user_id) || "Teammate"}</strong>
+                            <p>{reply.body}</p>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+
+                  <form action={postThreadReply} className="inline-form" style={{ marginTop: "8px" }}>
+                    <input type="hidden" name="parent_message_id" value={message.id} />
                     <input type="hidden" name="conversation_id" value={conversation.id} />
-                    <input name="body" defaultValue={message.body} aria-label="Edit message" />
-                    <button className="button small" type="submit">
-                      Save
+                    <input name="body" placeholder="Reply in thread..." />
+                    <button className="button small ghost" type="submit">
+                      Reply
                     </button>
                   </form>
-                ) : null}
-
-                <div className="thread-list">
-                  {messageList
-                    .filter((reply) => reply.parent_message_id === message.id)
-                    .map((reply) => (
-                      <div className="thread-item" key={reply.id}>
-                        <strong>{profileMap.get(reply.sender_user_id) || "Teammate"}</strong>
-                        <p className="muted">{reply.body}</p>
-                      </div>
-                    ))}
                 </div>
-
-                <form action={postThreadReply} className="inline-form">
-                  <input type="hidden" name="parent_message_id" value={message.id} />
-                  <input type="hidden" name="conversation_id" value={conversation.id} />
-                  <input name="body" placeholder="Reply in thread..." />
-                  <button className="button small" type="submit">
-                    Reply
-                  </button>
-                </form>
-
-                {message.sender_user_id === user.id ? (
-                  <form action={deleteMessage}>
-                    <input type="hidden" name="message_id" value={message.id} />
-                    <input type="hidden" name="conversation_id" value={conversation.id} />
-                    <button className="button danger small" type="submit">
-                      Delete
-                    </button>
-                  </form>
-                ) : null}
               </article>
             ))}
           </div>

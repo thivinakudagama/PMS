@@ -1957,3 +1957,133 @@ dialog.modal[open] {
   flex-direction: column;
   gap: 0;
 }
+
+/* Chat UI Overhaul */
+.chat-message-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  align-items: flex-end;
+  width: 100%;
+}
+
+.chat-message-row.is-me {
+  flex-direction: row-reverse;
+}
+
+.chat-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--primary-soft);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.chat-content {
+  display: flex;
+  flex-direction: column;
+  max-width: 75%;
+}
+
+.chat-message-row.is-me .chat-content {
+  align-items: flex-end;
+}
+
+.chat-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+  margin-left: 6px;
+}
+
+.chat-message-row.is-me .chat-meta {
+  margin-left: 0;
+  margin-right: 6px;
+  flex-direction: row-reverse;
+}
+
+.chat-meta strong {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1;
+}
+
+.chat-meta small {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1;
+}
+
+.chat-bubble {
+  background: #ffffff;
+  padding: 12px 16px;
+  border-radius: 18px;
+  border-bottom-left-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--border-soft);
+}
+
+.chat-message-row.is-me .chat-bubble {
+  background: var(--primary);
+  color: #ffffff;
+  border-bottom-left-radius: 18px;
+  border-bottom-right-radius: 4px;
+  border: 1px solid var(--primary-strong);
+}
+
+.chat-bubble p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: inherit;
+}
+
+.chat-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.chat-message-row.is-me .chat-actions {
+  justify-content: flex-end;
+}
+
+.chat-bubble-threads {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+
+.chat-thread-item {
+  background: var(--surface-soft);
+  padding: 10px 14px;
+  border-radius: 12px;
+  border-left: 3px solid #ddd6fe;
+  font-size: 13px;
+}
+
+.chat-message-row.is-me .chat-thread-item {
+  border-left: none;
+  border-right: 3px solid #ddd6fe;
+  text-align: right;
+}
+
+.chat-thread-item strong {
+  display: block;
+  margin-bottom: 2px;
+}
+
+.chat-thread-item p {
+  margin: 0;
+  color: var(--muted-strong);
+}

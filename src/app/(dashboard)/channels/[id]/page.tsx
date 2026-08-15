@@ -57,66 +57,79 @@ export default async function ChannelDetailPage({
               const groupedReactions = (reactions ?? []).filter((reaction: any) => reaction.message_id === message.id);
 
               return (
-                <article className="message-card" id={`message-${message.id}`} key={message.id}>
-                  <div className="card-header">
-                    <div>
-                      <strong>{messageMap.get(message.sender_user_id) || "Teammate"}</strong>
-                      <p className="muted">{new Date(message.created_at).toLocaleString()}</p>
+                <article className={`chat-message-row ${message.sender_user_id === user.id ? 'is-me' : ''}`} id={`message-${message.id}`} key={message.id}>
+                  {message.sender_user_id !== user.id && (
+                    <div className="chat-avatar">
+                      {(messageMap.get(message.sender_user_id) || "T")[0].toUpperCase()}
                     </div>
-                    <div className="row-end">
+                  )}
+                  
+                  <div className="chat-content">
+                    {message.sender_user_id !== user.id && (
+                      <div className="chat-meta">
+                        <strong>{messageMap.get(message.sender_user_id) || "Teammate"}</strong>
+                        <small>{new Date(message.created_at).toLocaleString([], { hour: '2-digit', minute: '2-digit' })}</small>
+                      </div>
+                    )}
+                    
+                    <div className="chat-bubble">
+                      <p>{message.body}</p>
+                    </div>
+
+                    <div className="chat-actions">
                       {["👍", "🔥", "✅"].map((emoji) => (
                         <form action={toggleMessageReaction} key={emoji}>
                           <input type="hidden" name="message_id" value={message.id} />
                           <input type="hidden" name="channel_id" value={channel.id} />
                           <input type="hidden" name="emoji" value={emoji} />
-                          <button className="button small" type="submit">
+                          <button className="button small ghost" type="submit" style={{ padding: "0.2rem 0.5rem" }}>
                             {emoji} {groupedReactions.filter((reaction: any) => reaction.emoji === emoji).length || ""}
                           </button>
                         </form>
                       ))}
+
+                      {message.sender_user_id === user.id ? (
+                        <form action={deleteMessage}>
+                          <input type="hidden" name="message_id" value={message.id} />
+                          <input type="hidden" name="channel_id" value={channel.id} />
+                          <button className="button danger small ghost" type="submit" style={{ padding: "0.2rem 0.5rem" }}>
+                            Delete
+                          </button>
+                        </form>
+                      ) : null}
                     </div>
-                  </div>
 
-                  <p>{message.body}</p>
+                    {message.sender_user_id === user.id ? (
+                      <form action={editMessage} className="inline-form message-edit-form" style={{ marginTop: "8px" }}>
+                        <input type="hidden" name="message_id" value={message.id} />
+                        <input type="hidden" name="channel_id" value={channel.id} />
+                        <input name="body" defaultValue={message.body} aria-label="Edit message" />
+                        <button className="button small ghost" type="submit">
+                          Save
+                        </button>
+                      </form>
+                    ) : null}
 
-                  {message.sender_user_id === user.id ? (
-                    <form action={editMessage} className="inline-form message-edit-form">
-                      <input type="hidden" name="message_id" value={message.id} />
-                      <input type="hidden" name="channel_id" value={channel.id} />
-                      <input name="body" defaultValue={message.body} aria-label="Edit message" />
-                      <button className="button small" type="submit">
-                        Save
-                      </button>
-                    </form>
-                  ) : null}
-
-                  <div className="thread-list">
-                    {threadReplies.map((reply) => (
-                      <div className="thread-item" key={reply.id}>
-                        <strong>{messageMap.get(reply.sender_user_id) || "Teammate"}</strong>
-                        <p className="muted">{reply.body}</p>
+                    {threadReplies.length > 0 && (
+                      <div className="chat-bubble-threads">
+                        {threadReplies.map((reply) => (
+                          <div className="chat-thread-item" key={reply.id}>
+                            <strong>{messageMap.get(reply.sender_user_id) || "Teammate"}</strong>
+                            <p>{reply.body}</p>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    )}
 
-                  {message.sender_user_id === user.id ? (
-                    <form action={deleteMessage}>
-                      <input type="hidden" name="message_id" value={message.id} />
+                    <form action={postThreadReply} className="inline-form" style={{ marginTop: "8px" }}>
+                      <input type="hidden" name="parent_message_id" value={message.id} />
                       <input type="hidden" name="channel_id" value={channel.id} />
-                      <button className="button danger small" type="submit">
-                        Delete
+                      <input name="body" placeholder="Reply in thread..." />
+                      <button className="button small ghost" type="submit">
+                        Reply
                       </button>
                     </form>
-                  ) : null}
-
-                  <form action={postThreadReply} className="inline-form">
-                    <input type="hidden" name="parent_message_id" value={message.id} />
-                    <input type="hidden" name="channel_id" value={channel.id} />
-                    <input name="body" placeholder="Reply in thread..." />
-                    <button className="button small" type="submit">
-                      Reply
-                    </button>
-                  </form>
+                  </div>
                 </article>
               );
             })}
